@@ -182,6 +182,14 @@ class Annotator():
 
     def _get_all_exons_dict(self):
         """
+        Returns dictionary of exons as transcript_id:{
+            [
+                {'start':START, 'end':END},
+                {'start':START, 'end':END},
+                ...
+            ]
+        }.
+        
         :return:
         """
         exons_dict = defaultdict(list)
@@ -197,10 +205,12 @@ class Annotator():
 
     def _get_all_transcripts_dict(self):
         """
-
-        :return:
+        Returns dictionary of transcript_id:{'start':START, 'end':END}.
+        
+        :return transcripts_dict: defaultdict(dict)
+            hash of transcripts and their start/end coordinates
         """
-        transcripts_dict = defaultdict(list)
+        transcripts_dict = defaultdict(dict)
         for transcript_feature in self._db.features_of_type('transcript'):
             for transcript_id in transcript_feature.attributes['transcript_id']:
                 transcripts_dict[transcript_id] = {
@@ -210,7 +220,15 @@ class Annotator():
         return transcripts_dict
 
     def _update_introns(self):
-        # progress = trange(self.num_features, leave=False, desc='inferring introns from exon/genes')
+        """
+        Iterates over each transcript, uses each transcript_dict
+        and exon_dict to group transcript + exon coordinates, 
+        and appends to features_dict a list of intron features
+        with the same attributes as the original transcript, but
+        with the featuretype set as 'intron'.
+        
+        :return: 
+        """
         for hash_val, features in self.features_dict.iteritems():
             for feature in features:
                 if feature.featuretype == 'transcript':
@@ -226,9 +244,27 @@ class Annotator():
                             self.features_dict[hash_val].append(
                                 intron_feature
                             )
-                # progress.update(1)
 
     def _find_introns(self, transcript, exons):
+        """
+        Given transcript coordinates and a list of exons,
+        return a list of introns (inverse coordinates)
+        
+        :param transcript: dictionary
+            {'start':int, 'end':int}
+        :param exons: list[dict]
+            [
+                {'start':int,'end':int},
+                {'start':int,'end':int},
+                ...
+            ]
+        :return introns: list[dict]
+            [
+                {'start':int,'end':int},
+                {'start':int,'end':int},
+                ...
+            ]
+        """
         positions = []
         introns = []
         for exon in exons:
@@ -396,24 +432,28 @@ class Annotator():
             interval.end,
             interval.strand
         )
+        #   If we find no overlapping features, return 'intergenic' (no feature seen)
         if len(overlapping_features) == 0:
             return 'INTERGENIC', 'INTERGENIC'
         to_append = ''  # full list of genes overlapping features
         transcript = defaultdict(list)
         for feature in overlapping_features:  # for each overlapping feature
+            #   for M10 annotations, I see gene featuretypes without transcript_ids.
+            #   That's fine. We can re-construct genes from the transcript features, so ignore
+            #   anything that doesn't have a transcript_id in it.
             if 'transcript_id' in feature.attributes.keys():
                 for transcript_id in feature.attributes[
                     'transcript_id'
                 ]:  # multiple genes can be associated with one feature
                     transcript[transcript_id].append(
                         feature)  # append features to their respective genes
-            
+
         for transcript, features in transcript.iteritems():
             for feature in features:
                 # if 'protein_coding' not in feature.attributes['transcript_type']:
                 #     if feature.featuretype == 'exon' or feature.featuretype == 'UTR':
                 #         feature.featuretype = 'noncoding_exon'
-                if feature.featuretype == 'UTR':
+                if feature.featuretype == 'UTR':  # if we only have UTR, specify what kind of UTR (3' or 5').
                     feature.featuretype = self._classify_utr(feature)
                 to_append += "{}:{}:{}:{}:{}:".format(
                     transcript,
@@ -422,15 +462,24 @@ class Annotator():
                     feature.strand,
                     feature.featuretype,
                 )
-                for t in feature.attributes['gene_id']:
-                    to_append += '{},'.format(t)
-                to_append = to_append[:-1] + ':'
-                for t in feature.attributes['gene_name']:
-                    to_append += '{},'.format(t)
-                to_append = to_append[:-1] + ':'
-                for t in feature.attributes['transcript_type']:
-                    to_append += '{},'.format(t)
-                to_append = to_append[:-1] + '|'
+                if 'gene_id' in feature.attributes.keys():
+                    for t in feature.attributes['gene_id']:
+                        to_append += '{},'.format(t)
+                    to_append = to_append[:-1] + ':'
+                else:
+                    to_append = to_append['-:']
+                if 'gene_name' in feature.attributes.keys():
+                    for t in feature.attributes['gene_name']:
+                        to_append += '{},'.format(t)
+                    to_append = to_append[:-1] + ':'
+                else:
+                    to_append = to_append['-:']
+                if 'transcript_type' in feature.attributes.keys():
+                    for t in feature.attributes['transcript_type']:
+                        to_append += '{},'.format(t)
+                    to_append = to_append[:-1] + '|'
+                else:
+                    to_append = to_append['-:']
         to_append = to_append[:-1]
         priority = self.prioritize_transcript_then_gene(
             self.parse_annotation_string(to_append),
