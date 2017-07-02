@@ -9,6 +9,7 @@ GENE_PRIORITY = [
     ['protein_coding','THREE_AND_FIVE_PRIME_UTR'],
     ['protein_coding','5UTR'],
     ['protein_coding','3UTR'],
+    ['protein_coding','UNCLASSIFIED_UTR'],
     ['protein_coding','intron'],
     ['protein_coding','Selenocysteine'],
     ['non_coding','exon'],
@@ -18,6 +19,7 @@ GENE_PRIORITY = [
     ['non_coding','THREE_AND_FIVE_PRIME_UTR'],
     ['non_coding','3UTR'],
     ['non_coding','5UTR'],
+    ['non_coding','UNCLASSIFIED_UTR'],
     ['non_coding','Selenocysteine'],
     ['non_coding','CDS'],  # shouldn't occur?
     ['non_coding','start_codon'],  # shouldn't occur?
@@ -34,15 +36,17 @@ TRANSCRIPT_PRIORITY = [
     ['protein_coding','THREE_AND_FIVE_PRIME_UTR'],
     ['protein_coding','5UTR'],
     ['protein_coding','3UTR'],
+    ['protein_coding', 'UNCLASSIFIED_UTR'],
     ['protein_coding','intron'],
     ['protein_coding','Selenocysteine'],
-    ['non_coding','exon'],
-    ['non_coding','intron'],
+    ['non_coding', 'exon'],
+    ['non_coding', 'intron'],
     ['non_coding','transcript'],
     ['non_coding','gene'],
     ['non_coding','THREE_AND_FIVE_PRIME_UTR'],
     ['non_coding','3UTR'],
     ['non_coding','5UTR'],
+    ['non_coding', 'UNCLASSIFIED_UTR'],
     ['non_coding','Selenocysteine'],
     ['non_coding','CDS'], # shouldn't occur?
     ['non_coding','start_codon'],  # shouldn't occur?
@@ -111,7 +115,13 @@ def main():
         required=False,
         default=None
     )
-
+    parser.add_argument(
+        "--unstranded",
+        dest="unstranded",
+        required=False,
+        action='store_true',
+        default=False
+    )
 
     try:
         args = parser.parse_args()
@@ -123,7 +133,12 @@ def main():
     output_annotated_file = args.output
     gtfdb_file = args.gtfdb
     chroms = args.limit_chroms_to
+    unstranded = args.unstranded
 
+    if unstranded:
+        stranded=False
+    else:
+        stranded=True
 
     if args.transcript_priority_file is not None:
         transcript_priority = parse(args.transcript_priority_file)
@@ -137,7 +152,7 @@ def main():
 
 
     Annotator.annotate(
-        gtfdb_file, input_bed_file, output_annotated_file, chroms,
+        gtfdb_file, input_bed_file, output_annotated_file, stranded, chroms,
         transcript_priority, gene_priority
     )
 

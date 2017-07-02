@@ -161,12 +161,12 @@ class Annotator():
             if utr_feature.strand == '+':
                 if self.cds_dict[transcript_id]['low'] > utr_feature.end:
                     five_prime_utr = True
-                if self.cds_dict[transcript_id]['hi'] < utr_feature.start:
+                if self.cds_dict[transcript_id]['hi'] < utr_feature.start + 1:
                     three_prime_utr = True
             elif utr_feature.strand == '-':
                 if self.cds_dict[transcript_id]['low'] > utr_feature.end:
                     three_prime_utr = True
-                if self.cds_dict[transcript_id]['hi'] < utr_feature.start:
+                if self.cds_dict[transcript_id]['hi'] < utr_feature.start + 1:
                     five_prime_utr = True
 
         if five_prime_utr and three_prime_utr:
@@ -285,8 +285,8 @@ class Annotator():
             introns.append({'start': positions[i], 'end': positions[i + 1]})
         return introns
 
-    def get_all_overlapping_features_from_query(self, chrom, qstart, qend,
-                                                strand):
+    def get_all_overlapping_features_from_query_stranded(self, chrom, qstart, qend,
+                                                         strand):
         """
         Given a query location (chr, start, end), return all features that
         overlap by at least one base. Functions similarly to gffutils db.region(),
@@ -306,16 +306,82 @@ class Annotator():
 
         for i in range(start_key, end_key + 1):
             for feature in self.features_dict[chrom, i, strand]:
-                if qstart <= feature.start and qend >= feature.end:  # feature completely contains query
+                if qstart <= feature.start and qend >= feature.end:  # query completely contains feature
+                    feature.attributes['overlap'] = 'query_contains_feature'
                     features.append(feature)
-                elif qstart >= feature.start and qend <= feature.end:  # query completely contains feature
+                elif qstart >= feature.start and qend <= feature.end:  # feature completely contains query
+                    feature.attributes['overlap'] = 'feature_contains_query'
                     features.append(feature)
-                elif qstart <= feature.start and qend >= feature.start:  # feature partially overlaps (qstart < fstart < qend)
+                elif qstart <= feature.start and qend > feature.start:  # feature partially overlaps (qstart < fstart < qend)
+                    feature.attributes['overlap'] = 'partial_by_{}_bases'.format(qend- (feature.start - 1))
                     features.append(feature)
                 elif qstart <= feature.end and qend >= feature.end:  # feature partially overlaps (qstart < fend < qend)
+                    feature.attributes['overlap'] = 'partial_by_{}_bases'.format(feature.end - qstart)
                     features.append(feature)
-
+        for feature in features:
+            feature.start = feature.start - 1 # fix to make gff-coordinates 0-based
         return features
+
+    def get_all_overlapping_features_from_query_unstranded(self, chrom, qstart, qend, strand=None):
+        """
+        Returns overlapping features from a query.
+        
+        :param chrom: 
+        :param qstart: 
+        :param qend: 
+        :param strand: 
+        :return: 
+        """
+        if strand is None:  # If no strand given, return all features from both strands
+            positive_features = self.get_all_overlapping_features_from_query_stranded(
+                chrom, qstart, qend, '+'
+            )
+            negative_features = self.get_all_overlapping_features_from_query_stranded(
+                chrom, qstart, qend, '-'
+            )
+            return positive_features + negative_features
+        else:  # return features on the same strand, only return features on opposite strand if it can't find anything otherwise.
+            priority_features = self.get_all_overlapping_features_from_query_stranded(
+                chrom, qstart, qend, strand
+            )
+            if len(priority_features) == 0: # found nothing on the proper strand
+                if strand == '+':
+                    return self.get_all_overlapping_features_from_query_stranded(
+                        chrom, qstart, qend, '-'
+                    )
+                elif strand == '-':
+                    return self.get_all_overlapping_features_from_query_stranded(
+                        chrom, qstart, qend, '+'
+                    )
+                else:
+                    print("Strand not correct: {}".format(strand))
+                    return []
+            else:
+                return priority_features
+
+    def get_all_overlapping_features_from_query(self, chrom, qstart, qend, strand, stranded=True):
+        """
+        Returns overlapping features from a query.
+        If stranded is True, then return only the features that overlap on the same strand.
+        Otherwise, features returned need not to be with respect to strand (although if 
+        strand is given, it will return same-stranded features first before attempting to 
+        find those on the opposite strand).
+        
+        :param chrom: 
+        :param qstart: 
+        :param qend: 
+        :param strand: 
+        :param stranded: 
+        :return: 
+        """
+        if stranded:
+            return self.get_all_overlapping_features_from_query_stranded(
+                chrom, qstart, qend, strand
+            )
+        else:
+            return self.get_all_overlapping_features_from_query_unstranded(
+                chrom, qstart, qend, strand=None  # TODO: implement the priority better. For now, this will return all features for both strands
+            )
 
     def parse_annotation_string(self, features_string):
         """
@@ -342,7 +408,7 @@ class Annotator():
         # Build dict
         combined_dict = defaultdict(list)
         for feature_string in formatted_features:
-            transcript, start, end, strand, feature_type, gene_id, gene_name, transcript_type_list = feature_string.split(
+            transcript, start, end, strand, feature_type, gene_id, gene_name, transcript_type_list, overlap = feature_string.split(
                 ':')
             transcript_type_list = transcript_type_list.split(',')
             for transcript_type in transcript_type_list:
@@ -419,18 +485,20 @@ class Annotator():
             return final[0].replace('exon', 'noncoding_exon').replace('intron', 'noncoding_intron')
         return final[0]
 
-    def annotate(self, interval, transcript_priority, gene_priority):
+    def annotate(self, interval, stranded, transcript_priority, gene_priority):
         """
         Given an interval, annotates using the priority
 
         :param interval:
         :return:
         """
+
         overlapping_features = self.get_all_overlapping_features_from_query(
             interval.chrom,
             interval.start,
             interval.end,
-            interval.strand
+            interval.strand,
+            stranded
         )
         #   If we find no overlapping features, return 'intergenic' (no feature seen)
         if len(overlapping_features) == 0:
@@ -477,9 +545,16 @@ class Annotator():
                 if 'transcript_type' in feature.attributes.keys():
                     for t in feature.attributes['transcript_type']:
                         to_append += '{},'.format(t)
+                    to_append = to_append[:-1] + ':'
+                else:
+                    to_append = to_append['-:']
+                if 'overlap' in feature.attributes.keys():
+                    for t in feature.attributes['overlap']:
+                        to_append += '{},'.format(t)
                     to_append = to_append[:-1] + '|'
                 else:
                     to_append = to_append['-:']
+
         to_append = to_append[:-1]
         priority = self.prioritize_transcript_then_gene(
             self.parse_annotation_string(to_append),
@@ -490,7 +565,7 @@ class Annotator():
         return priority, to_append
 
 
-def annotate(db_file, bed_file, out_file, chroms,
+def annotate(db_file, bed_file, out_file, unstranded, chroms,
              transcript_priority, gene_priority):
     """
     Given a bed6 file, return the file with an extra column containing
@@ -507,7 +582,7 @@ def annotate(db_file, bed_file, out_file, chroms,
     with open(out_file, 'w') as o:
         for interval in bed_tool:  # for each line in bed file
             priority, annotation = annotator.annotate(
-                interval, transcript_priority, gene_priority
+                interval, unstranded, transcript_priority, gene_priority
             )
             o.write('{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n'.format(
                 interval.chrom, interval.start,
