@@ -16,12 +16,24 @@ class Annotator():
 
     """
 
-    def __init__(self, db_file, chroms=[]):
+    def __init__(self, db_file, chroms=[], species='hg19', append_chr=False, fuzzy=0):
         """
         
         :param db_file: 
         :param chroms: 
         """
+
+        if species == 'ce11':
+            cds_key = 'CDS'
+            utr3_key = 'three_prime_utr'
+            utr5_key = 'five_prime_utr'
+            utr_key = None
+        else:
+            cds_key = 'cds'
+            utr3_key = None #
+            utr5_key = None # in human/mice, this key doesn't really exist
+            utr_key = 'UTR'
+
         self.num_features = 0
         self._db = gffutils.FeatureDB(db_file)
 
@@ -29,6 +41,8 @@ class Annotator():
         self._featuretypes = [x.lower() for x in list(self._db.featuretypes())]
 
         progress.update(1)
+
+        print("featuretypes = {}".format(self._featuretypes))
 
         progress.set_description("Building gene ids -> gene names dictionary")
         self._geneid_to_name_dict = self._gene_id_to_name()
@@ -41,7 +55,8 @@ class Annotator():
             progress.set_description("Adding all features in DB to dictionary")
             self._chromosomes = self._chromosome_set()
 
-        self._hash_features()
+        ### Store all features into dictionary
+        self._hash_features(append_chr, fuzzy)
         progress.update(1)
 
         ### If 'exon' features exist in db, catalog it.
@@ -62,7 +77,7 @@ class Annotator():
         ### If 'exon' features exist in db, catalog it.
         if 'cds' in self._featuretypes:
             progress.set_description("Adding all CDS boundaries")
-            self.cds_dict = self._get_all_cds_dict()
+            self.cds_dict = self._get_all_cds_dict(cds_key=cds_key)
         progress.update(1)
 
     def _gene_id_to_name(self):
@@ -78,6 +93,7 @@ class Annotator():
 
         genes = self._db.features_of_type('gene')
         gene_name_dict = {}
+
 
         for gene in genes:
             gene_id = gene.attributes['gene_id'][0] if type(
@@ -101,7 +117,7 @@ class Annotator():
         all_chromosomes = [r['seqid'] for r in ret]
         return set(all_chromosomes)
 
-    def _hash_features(self):
+    def _hash_features(self, append_chr, fuzzy):
         """
         hashes features by position.
         :return features_dict : collections.defaultdict()
@@ -116,19 +132,34 @@ class Annotator():
             desc='Building feature index'
         )
         for chrom in self._chromosomes:
+            fixed_chrom = 'chr' + chrom if append_chr else chrom
+
             progress.set_description("Adding {}...".format(chrom))
             for element in self._db.region(seqid=chrom):
+
+                if element.featuretype == 'start_codon':
+                    if element.strand == '+':
+                        element.start = element.start - fuzzy
+                    elif element.strand == '-':
+                        element.end = element.end + fuzzy
+                if element.featuretype == 'stop_codon':
+                    if element.strand == '+':
+                        element.end = element.end + fuzzy
+                    elif element.strand == '-':
+                        element.start = element.start - fuzzy
+
                 start = int(element.start / HASH_VAL)
                 end = int(element.end / HASH_VAL)
                 for i in range(start, end+1):
-                    features_dict[chrom, i, element.strand].append(element)
+                    element.chrom = fixed_chrom
+                    features_dict[fixed_chrom, i, element.strand].append(element)
                 num_features+=1
             progress.update(1)
 
         self.features_dict = features_dict
         self.num_features = num_features
 
-    def _get_all_cds_dict(self):
+    def _get_all_cds_dict(self, cds_key):
         """
         For every cds-annotated transcript id (ENST), return a 
         dictionary containing the lowest and highest
@@ -137,9 +168,9 @@ class Annotator():
         :return cds_dict : defaultdict{transcript:{'start':START, 'end':END}} 
         """
         cds_dict = defaultdict(lambda: {'low': MAXVAL, 'hi': MINVAL})
-        for cds_feature in self._db.features_of_type('CDS'):
-            for transcript_id in cds_feature.attributes['transcript_id']:
 
+        for cds_feature in self._db.features_of_type(cds_key):
+            for transcript_id in cds_feature.attributes['transcript_id']:
                 if cds_feature.start <= cds_dict[transcript_id]['low']:
                     cds_dict[transcript_id]['low'] = cds_feature.start
                 if cds_feature.end >= cds_dict[transcript_id]['hi']:
@@ -402,6 +433,7 @@ class Annotator():
         """
         if transcript_type == 'protein_coding':
             return True
+
         return False
 
     def return_highest_priority_feature(self, formatted_features, priority):
@@ -540,10 +572,18 @@ class Annotator():
                     for t in feature.attributes['gene_name']:
                         to_append += '{},'.format(t)
                     to_append = to_append[:-1] + ':'
+                elif 'transcript_id' in feature.attributes.keys():
+                    for t in feature.attributes['transcript_id']:
+                        to_append += '{},'.format(t)
+                    to_append = to_append[:-1] + ':'
                 else:
                     to_append = to_append['-:']
                 if 'transcript_type' in feature.attributes.keys():
                     for t in feature.attributes['transcript_type']:
+                        to_append += '{},'.format(t)
+                    to_append = to_append[:-1] + ':'
+                elif 'transcript_biotype' in feature.attributes.keys():
+                    for t in feature.attributes['transcript_biotype']:
                         to_append += '{},'.format(t)
                     to_append = to_append[:-1] + ':'
                 else:
@@ -566,7 +606,7 @@ class Annotator():
 
 
 def annotate(db_file, bed_file, out_file, unstranded, chroms,
-             transcript_priority, gene_priority):
+             transcript_priority, gene_priority, species, append_chr, fuzzy):
     """
     Given a bed6 file, return the file with an extra column containing
     '|' delimited gene annotations
@@ -575,14 +615,19 @@ def annotate(db_file, bed_file, out_file, unstranded, chroms,
     :param bed_file:
     :param out_file:
     :param chroms:
+    :param species:
+    :param append_chr: boolean
+        True if we need to add 'chr' to the database annotations
+        For example, wormbase/Ensembl annotations use I/II/1/2/etc.
+        instead of chrI/chr1, so we need to let the database know that.
     :return:
     """
-    annotator = Annotator(db_file, chroms)
+    annotator = Annotator(db_file, chroms, species, append_chr, fuzzy)
     bed_tool = pybedtools.BedTool(bed_file)
     with open(out_file, 'w') as o:
         for interval in bed_tool:  # for each line in bed file
             priority, annotation = annotator.annotate(
-                interval, unstranded, transcript_priority, gene_priority
+                interval, unstranded, transcript_priority, gene_priority,
             )
             o.write('{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n'.format(
                 interval.chrom, interval.start,

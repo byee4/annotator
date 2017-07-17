@@ -59,6 +59,7 @@ TRANSCRIPT_PRIORITY = [
 GENE_ID = 'gene_id'
 TRANSCRIPT_ID = 'transcript_id'
 
+
 def parse(priority_file, delim=','):
     """
     From a comma delimited file, return a list of lists
@@ -122,7 +123,26 @@ def main():
         action='store_true',
         default=False
     )
-
+    parser.add_argument(
+        "--append_chr",
+        dest="append_chr",
+        required=False,
+        action='store_true',
+        default=False
+    )
+    parser.add_argument(
+        "--species",
+        dest="species",
+        required=False,
+        default='hg19'
+    )
+    parser.add_argument(
+        "--fuzzy",
+        dest="fuzzy",
+        required=False,
+        type=int,
+        default=0
+    )
     try:
         args = parser.parse_args()
     except:
@@ -134,6 +154,9 @@ def main():
     gtfdb_file = args.gtfdb
     chroms = args.limit_chroms_to
     unstranded = args.unstranded
+    species = args.species
+    append_chr = args.append_chr
+    fuzzy = args.fuzzy
 
     if unstranded:
         stranded=False
@@ -153,7 +176,7 @@ def main():
 
     Annotator.annotate(
         gtfdb_file, input_bed_file, output_annotated_file, stranded, chroms,
-        transcript_priority, gene_priority
+        transcript_priority, gene_priority, species, append_chr, fuzzy
     )
 
 if __name__ == "__main__":
