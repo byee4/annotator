@@ -4,6 +4,7 @@ import gffutils
 from collections import defaultdict
 from collections import OrderedDict
 import copy
+import sys
 
 HASH_VAL = 1000000
 MAXVAL = 1000000000
@@ -24,15 +25,26 @@ class Annotator():
         """
 
         if species == 'ce11':
-            cds_key = 'CDS'
-            utr3_key = 'three_prime_utr'
-            utr5_key = 'five_prime_utr'
-            utr_key = None
+            self.cds_key = 'CDS'
+            self.utr3_key = 'three_prime_UTR'
+            self.utr5_key = 'five_prime_UTR'
+            self.utr_key = None
+            self.gene_name_key = 'gene_id'
+            self.trancript_id_key = 'transcript_id'
+        elif species == 'ce11g':
+            self.cds_key = 'CDS'
+            self.utr3_key = 'three_prime_UTR'
+            self.utr5_key = 'five_prime_UTR'
+            self.utr_key = None
+            self.gene_name_key = 'Name'
+            self.trancript_id_key = 'ID'
         else:
-            cds_key = 'cds'
-            utr3_key = None #
-            utr5_key = None # in human/mice, this key doesn't really exist
-            utr_key = 'UTR'
+            self.cds_key = 'CDS'
+            self.utr3_key = None #
+            self.utr5_key = None # in human/mice, this key doesn't really exist
+            self.utr_key = 'UTR'
+            self.gene_name_key = 'gene_name'
+            self.trancript_id_key = 'transcript_id'
 
         self.num_features = 0
         self._db = gffutils.FeatureDB(db_file)
@@ -77,9 +89,8 @@ class Annotator():
         ### If 'exon' features exist in db, catalog it.
         if 'cds' in self._featuretypes:
             progress.set_description("Adding all CDS boundaries")
-            self.cds_dict = self._get_all_cds_dict(cds_key=cds_key)
+            self.cds_dict = self._get_all_cds_dict()
         progress.update(1)
-
     def _gene_id_to_name(self):
         """
         Returns a dictionary containing a gene_id:name translation
@@ -96,15 +107,15 @@ class Annotator():
 
 
         for gene in genes:
-            gene_id = gene.attributes['gene_id'][0] if type(
-                gene.attributes['gene_id']
-            ) == list else gene.attributes['gene_id']
             try:
-                gene_name_dict[gene_id] = gene.attributes['gene_name'][0]
+                gene_id = gene.attributes['gene_id'][0] if type(
+                    gene.attributes['gene_id']
+                ) == list else gene.attributes['gene_id']
+                gene_name_dict[gene_id] = gene.attributes[self.gene_name_key][0]
             except KeyError:
                 print(gene.attributes.keys())
                 print("Warning. Key not found for {}".format(gene))
-                return 1
+                sys.exit(1)
         return gene_name_dict
 
     def _chromosome_set(self):
@@ -157,9 +168,10 @@ class Annotator():
             progress.update(1)
 
         self.features_dict = features_dict
+        print("{} features hashed.".format(num_features))
         self.num_features = num_features
 
-    def _get_all_cds_dict(self, cds_key):
+    def _get_all_cds_dict(self):
         """
         For every cds-annotated transcript id (ENST), return a 
         dictionary containing the lowest and highest
@@ -169,7 +181,7 @@ class Annotator():
         """
         cds_dict = defaultdict(lambda: {'low': MAXVAL, 'hi': MINVAL})
 
-        for cds_feature in self._db.features_of_type(cds_key):
+        for cds_feature in self._db.features_of_type(self.cds_key):
             for transcript_id in cds_feature.attributes['transcript_id']:
                 if cds_feature.start <= cds_dict[transcript_id]['low']:
                     cds_dict[transcript_id]['low'] = cds_feature.start
@@ -225,7 +237,7 @@ class Annotator():
         """
         exons_dict = defaultdict(list)
         for exon_feature in self._db.features_of_type('exon'):
-            for transcript_id in exon_feature.attributes['transcript_id']:
+            for transcript_id in exon_feature.attributes[self.trancript_id_key]:
                 exons_dict[transcript_id].append(
                     {
                         'start': exon_feature.start,
@@ -243,7 +255,7 @@ class Annotator():
         """
         transcripts_dict = defaultdict(dict)
         for transcript_feature in self._db.features_of_type('transcript'):
-            for transcript_id in transcript_feature.attributes['transcript_id']:
+            for transcript_id in transcript_feature.attributes[self.trancript_id_key]:
                 transcripts_dict[transcript_id] = {
                     'start': transcript_feature.start,
                     'end': transcript_feature.end
@@ -263,7 +275,7 @@ class Annotator():
         for hash_val, features in self.features_dict.iteritems():
             for feature in features:
                 if feature.featuretype == 'transcript':
-                    for transcript_id in feature.attributes['transcript_id']:
+                    for transcript_id in feature.attributes[self.trancript_id_key]:
                         exons = self.exons_dict[transcript_id]
                         transcript = self.transcripts_dict[transcript_id]
                         introns = self._find_introns(transcript, exons)
@@ -349,8 +361,9 @@ class Annotator():
                 elif qstart <= feature.end and qend >= feature.end:  # feature partially overlaps (qstart < fend < qend)
                     feature.attributes['overlap'] = 'partial_by_{}_bases'.format(feature.end - qstart)
                     features.append(feature)
-        for feature in features:
-            feature.start = feature.start - 1 # fix to make gff-coordinates 0-based
+        # for f in features:
+        #     f.start = f.start - 1 # fix to make gff-coordinates 0-based
+
         return features
 
     def get_all_overlapping_features_from_query_unstranded(self, chrom, qstart, qend, strand=None):
@@ -437,6 +450,16 @@ class Annotator():
         return False
 
     def return_highest_priority_feature(self, formatted_features, priority):
+        """
+        Given a list of formatted features, return the feature with the highest
+        priority. If there are ties, return just the first one.
+
+        :param formatted_features: list
+            list of feature_strings
+        :param priority: list
+            list containing feature types in order of priority.
+        :return:
+        """
         # Build dict
         combined_dict = defaultdict(list)
         for feature_string in formatted_features:
@@ -453,12 +476,21 @@ class Annotator():
                         feature_string)
         # return the highest one
         combined_dict = OrderedDict(
-            combined_dict)  # turn into ordered dict, is that ok?
+            combined_dict
+        )  # turn into ordered dict, is that ok?
+        # print("combined dict: {}".format(combined_dict))
         try:
+            # print("PRIORITY: ", priority)
+            for key, _ in combined_dict.iteritems(): # append nonexisting regions to the end of the priority list
+                if key not in priority:
+                    priority.append(list(key))
+            # print("PRIORITY: ",priority)
             combined_dict = sorted(  # sort based on priority list
                 combined_dict.iteritems(),
                 key=lambda x: priority.index([x[0][0], x[0][1]])
             )
+            # print("PRIORITY: {}".format(priority))
+            # print("combined dict (sorted): {}".format(combined_dict))
         except ValueError as e:
             print(e)
             print(combined_dict)
@@ -490,7 +522,7 @@ class Annotator():
 
         if len(unique_transcript_features.keys()) == 0:
             return 'INTERGENIC'
-
+        # print("PRIORITIZING TRANSCRIPT!!!!!")
         ### PRIORITIZE TRANSCRIPT ###
         for transcript in unique_transcript_features.keys(): # For each unique transcript
             top_transcript = self.return_highest_priority_feature(
@@ -504,7 +536,7 @@ class Annotator():
             gene_list = top_transcript.split(':')[5].split(',')
             for gene in gene_list:
                 unique_genes[gene].append(top_transcript)
-
+        # print("PRIORITIZING GENE!!!!!")
         ### PRIORITIZE GENE ###
         for gene, transcripts in unique_genes.iteritems():
             for transcript in transcripts:
@@ -513,7 +545,7 @@ class Annotator():
             final, gene_priority
         )
 
-        if feature_type[0] == 'non_coding':  # TODO: fix. kind of hacky
+        if feature_type[0] == 'non_coding':  # TODO: fix. hacky
             return final[0].replace('exon', 'noncoding_exon').replace('intron', 'noncoding_intron')
         return final[0]
 
@@ -532,6 +564,7 @@ class Annotator():
             interval.strand,
             stranded
         )
+
         #   If we find no overlapping features, return 'intergenic' (no feature seen)
         if len(overlapping_features) == 0:
             return 'INTERGENIC', 'INTERGENIC'
@@ -557,13 +590,17 @@ class Annotator():
                     feature.featuretype = self._classify_utr(feature)
                 to_append += "{}:{}:{}:{}:{}:".format(
                     transcript,
-                    feature.start,
+                    feature.start - 1, # 0 based
                     feature.end,
                     feature.strand,
                     feature.featuretype,
                 )
                 if 'gene_id' in feature.attributes.keys():
                     for t in feature.attributes['gene_id']:
+                        to_append += '{},'.format(t)
+                    to_append = to_append[:-1] + ':'
+                elif 'ID' in feature.attributes.keys():
+                    for t in feature.attributes['ID']:
                         to_append += '{},'.format(t)
                     to_append = to_append[:-1] + ':'
                 else:
@@ -576,6 +613,10 @@ class Annotator():
                     for t in feature.attributes['transcript_id']:
                         to_append += '{},'.format(t)
                     to_append = to_append[:-1] + ':'
+                elif 'ID' in feature.attributes.keys():
+                    for t in feature.attributes['ID']:
+                        to_append += '{},'.format(t)
+                    to_append = to_append[:-1] + ':'
                 else:
                     to_append = to_append['-:']
                 if 'transcript_type' in feature.attributes.keys():
@@ -584,6 +625,10 @@ class Annotator():
                     to_append = to_append[:-1] + ':'
                 elif 'transcript_biotype' in feature.attributes.keys():
                     for t in feature.attributes['transcript_biotype']:
+                        to_append += '{},'.format(t)
+                    to_append = to_append[:-1] + ':'
+                elif 'biotype' in feature.attributes.keys():
+                    for t in feature.attributes['biotype']:
                         to_append += '{},'.format(t)
                     to_append = to_append[:-1] + ':'
                 else:
