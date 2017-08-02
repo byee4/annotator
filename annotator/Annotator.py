@@ -31,13 +31,7 @@ class Annotator():
             self.utr_key = None
             self.gene_name_key = 'gene_id'
             self.trancript_id_key = 'transcript_id'
-        elif species == 'ce11g':
-            self.cds_key = 'CDS'
-            self.utr3_key = 'three_prime_UTR'
-            self.utr5_key = 'five_prime_UTR'
-            self.utr_key = None
-            self.gene_name_key = 'Name'
-            self.trancript_id_key = 'ID'
+            self.type_key = 'transcript_biotype'
         else:
             self.cds_key = 'CDS'
             self.utr3_key = None #
@@ -45,6 +39,7 @@ class Annotator():
             self.utr_key = 'UTR'
             self.gene_name_key = 'gene_name'
             self.trancript_id_key = 'transcript_id'
+            self.type_key = 'transcript_type'
 
         self.num_features = 0
         self._db = gffutils.FeatureDB(db_file)
@@ -148,12 +143,12 @@ class Annotator():
             progress.set_description("Adding {}...".format(chrom))
             for element in self._db.region(seqid=chrom):
 
-                if element.featuretype == 'start_codon':
+                if element.featuretype == 'gene':
                     if element.strand == '+':
                         element.start = element.start - fuzzy
                     elif element.strand == '-':
                         element.end = element.end + fuzzy
-                if element.featuretype == 'stop_codon':
+                if element.featuretype == 'gene':
                     if element.strand == '+':
                         element.end = element.end + fuzzy
                     elif element.strand == '-':
@@ -168,7 +163,6 @@ class Annotator():
             progress.update(1)
 
         self.features_dict = features_dict
-        print("{} features hashed.".format(num_features))
         self.num_features = num_features
 
     def _get_all_cds_dict(self):
@@ -574,9 +568,9 @@ class Annotator():
             #   for M10 annotations, I see gene featuretypes without transcript_ids.
             #   That's fine. We can re-construct genes from the transcript features, so ignore
             #   anything that doesn't have a transcript_id in it.
-            if 'transcript_id' in feature.attributes.keys():
+            if self.trancript_id_key in feature.attributes.keys():
                 for transcript_id in feature.attributes[
-                    'transcript_id'
+                    self.trancript_id_key
                 ]:  # multiple genes can be associated with one feature
                     transcript[transcript_id].append(
                         feature)  # append features to their respective genes
@@ -590,7 +584,7 @@ class Annotator():
                     feature.featuretype = self._classify_utr(feature)
                 to_append += "{}:{}:{}:{}:{}:".format(
                     transcript,
-                    feature.start - 1, # 0 based
+                    feature.start - 1,  # report 0 based
                     feature.end,
                     feature.strand,
                     feature.featuretype,
@@ -599,12 +593,8 @@ class Annotator():
                     for t in feature.attributes['gene_id']:
                         to_append += '{},'.format(t)
                     to_append = to_append[:-1] + ':'
-                elif 'ID' in feature.attributes.keys():
-                    for t in feature.attributes['ID']:
-                        to_append += '{},'.format(t)
-                    to_append = to_append[:-1] + ':'
                 else:
-                    to_append = to_append['-:']
+                    to_append = to_append + '-:'
                 if 'gene_name' in feature.attributes.keys():
                     for t in feature.attributes['gene_name']:
                         to_append += '{},'.format(t)
@@ -613,32 +603,20 @@ class Annotator():
                     for t in feature.attributes['transcript_id']:
                         to_append += '{},'.format(t)
                     to_append = to_append[:-1] + ':'
-                elif 'ID' in feature.attributes.keys():
-                    for t in feature.attributes['ID']:
+                else:
+                    to_append = to_append + '-:'
+                if self.type_key in feature.attributes.keys():
+                    for t in feature.attributes[self.type_key]:
                         to_append += '{},'.format(t)
                     to_append = to_append[:-1] + ':'
                 else:
-                    to_append = to_append['-:']
-                if 'transcript_type' in feature.attributes.keys():
-                    for t in feature.attributes['transcript_type']:
-                        to_append += '{},'.format(t)
-                    to_append = to_append[:-1] + ':'
-                elif 'transcript_biotype' in feature.attributes.keys():
-                    for t in feature.attributes['transcript_biotype']:
-                        to_append += '{},'.format(t)
-                    to_append = to_append[:-1] + ':'
-                elif 'biotype' in feature.attributes.keys():
-                    for t in feature.attributes['biotype']:
-                        to_append += '{},'.format(t)
-                    to_append = to_append[:-1] + ':'
-                else:
-                    to_append = to_append['-:']
+                    to_append = to_append + '-:'
                 if 'overlap' in feature.attributes.keys():
                     for t in feature.attributes['overlap']:
                         to_append += '{},'.format(t)
                     to_append = to_append[:-1] + '|'
                 else:
-                    to_append = to_append['-:']
+                    to_append = to_append + '-:'
 
         to_append = to_append[:-1]
         priority = self.prioritize_transcript_then_gene(

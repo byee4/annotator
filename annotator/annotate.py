@@ -1,5 +1,5 @@
 from argparse import ArgumentParser
-import annotator
+from annotator import Annotator
 import sys
 
 GENE_PRIORITY = [
@@ -16,17 +16,7 @@ GENE_PRIORITY = [
     ['non_coding','intron'],
     ['non_coding','transcript'],
     ['non_coding','gene'],
-    ['non_coding','THREE_AND_FIVE_PRIME_UTR'],
-    ['non_coding','3UTR'],
-    ['non_coding','5UTR'],
-    ['non_coding','UNCLASSIFIED_UTR'],
     ['non_coding','Selenocysteine'],
-    ['non_coding','CDS'],  # shouldn't occur?
-    ['non_coding','start_codon'],  # shouldn't occur?
-    ['non_coding','stop_codon'],  # shouldn't occur?
-    ['protein_coding', 'exon'],  # shouldn't occur?
-    ['protein_coding', 'transcript'],  # shouldn't occur?
-    ['protein_coding', 'gene'],  # shouldn't occur?
 ]
 
 TRANSCRIPT_PRIORITY = [
@@ -43,22 +33,8 @@ TRANSCRIPT_PRIORITY = [
     ['non_coding', 'intron'],
     ['non_coding','transcript'],
     ['non_coding','gene'],
-    ['non_coding','THREE_AND_FIVE_PRIME_UTR'],
-    ['non_coding','3UTR'],
-    ['non_coding','5UTR'],
-    ['non_coding', 'UNCLASSIFIED_UTR'],
     ['non_coding','Selenocysteine'],
-    ['non_coding','CDS'], # shouldn't occur?
-    ['non_coding','start_codon'],  # shouldn't occur?
-    ['non_coding','stop_codon'],  # shouldn't occur?
-    ['protein_coding','exon'], # shouldn't occur?
-    ['protein_coding','transcript'], # shouldn't occur?
-    ['protein_coding','gene'], # shouldn't occur
 ]
-
-GENE_ID = 'gene_id'
-TRANSCRIPT_ID = 'transcript_id'
-
 
 def parse(priority_file, delim=','):
     """
@@ -98,22 +74,18 @@ def main():
         required=True
     )
     parser.add_argument(
-        "--limit-chroms-to",
-        dest="limit_chroms_to",
-        required=False,
-        nargs='+',
-        default=[]
-    )
-    parser.add_argument(
         "--transcript-priority-file",
         dest="transcript_priority_file",
         required=False,
+        help='For each transcript (grouped by genes), return the transcript'
+             ' using this priority',
         default=None
     )
     parser.add_argument(
         "--gene-priority-file",
         dest="gene_priority_file",
         required=False,
+        help='For each gene, return the gene region using this priority',
         default=None
     )
     parser.add_argument(
@@ -121,6 +93,8 @@ def main():
         dest="unstranded",
         required=False,
         action='store_true',
+        help='ALLOW unstranded - will still search for correctly'
+             ' stranded features first (searches positive first if a BED3)',
         default=False
     )
     parser.add_argument(
@@ -128,20 +102,26 @@ def main():
         dest="append_chr",
         required=False,
         action='store_true',
+        help='If your bedfile is formatted as something like [chrI] but the '
+             'gtf database expects [I], we can retroactively append [chr] '
+             'for you.',
         default=False
     )
     parser.add_argument(
         "--species",
         dest="species",
         required=False,
+        help='sets default GTF nomenclature to either [ce11] or [hg19/mm10]',
         default='hg19'
     )
     parser.add_argument(
-        "--fuzzy",
-        dest="fuzzy",
+        "--limit-chroms-to",
+        dest="limit_chroms_to",
         required=False,
-        type=int,
-        default=0
+        help="limit to annotating to these chromosomes "
+             "only, saves time/memory",
+        nargs='+',
+        default=[]
     )
     try:
         args = parser.parse_args()
@@ -156,7 +136,7 @@ def main():
     unstranded = args.unstranded
     species = args.species
     append_chr = args.append_chr
-    fuzzy = args.fuzzy
+    fuzzy = 0  # TODO: implement later - unnecessary now
 
     if unstranded:
         stranded=False
@@ -174,7 +154,7 @@ def main():
         gene_priority = GENE_PRIORITY
 
 
-    annotator.annotate(
+    Annotator.annotate(
         gtfdb_file, input_bed_file, output_annotated_file, stranded, chroms,
         transcript_priority, gene_priority, species, append_chr, fuzzy
     )

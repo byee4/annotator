@@ -1,17 +1,73 @@
 # annotator
 
+Requirements: See the environments.yaml file
+
 example usage: 
 
 ```
-python annotate.py \
+annotate \
 --input BEDFILE \
 --output ANNOTATEDFILE \
 --gtfdb gencode.v19.annotation.gtf.db \
---limit-chroms-to chr7
 ```
 
-(```--limit-chroms-to``` will limit the dictionary build to only include these chromosomes for faster processing and less memory footprint. Leave blank to hash all chromosomes in the db file)
 
 outputs bedfile + first priority annotation + all overlapping annotations
+in this format:
+
+```transcript_id:region_start:region_stop:strand:region:gene_id:gene_name:transcript_type:overlap```
+
+
+### Default Priority (hg19 gencode v19):
+
+- protein_coding CDS
+- protein_coding start_codon
+- protein_coding stop_codon
+- protein_coding THREE_AND_FIVE_PRIME_UTR
+- protein_coding 5UTR
+- protein_coding 3UTR
+- protein_coding intron
+- protein_coding Selenocysteine
+- non_coding exon
+- non_coding intron
+- non_coding transcript
+- non_coding gene
+- non_coding Selenocysteine
+
+### Methods:
+
+This script works first by prioritizing overlapping transcript regions
+for each gene, then by prioritizing genic regions among all overlapping
+genes that overlap your region of interest. As in, if a feature overlaps
+both a 3'UTR of Transcript A and a CDS of Transcript B
+(both belonging to Gene X), we decide to report Transcript B:CDS.
+If multiple genes overlap your feature (Gene X, Gene Y), we prioritize all
+transcripts within each gene first such that each gene contains a 'chosen'
+transcript, then prioritize each gene in the same way.
+
+### Other Options:
+
+```--transcript-priority-file``` determines the priority when ordering
+transcripts within each gene. It's a comma delimited file
+(See the ```data/priority.txt``` for an example) containing both
+the feature type, transcript type prioritized by line order. Features
+that are discovered to be overlapped but are not in this list will be
+randomly appended to the end as last priority.
+
+```--gene-priority-file``` determines the priority when choosing which gene
+to report. The format is identical to transcript-priority-file.
+
+```--species``` specifies whether or not the database is formatted
+to gencodegenes specifications (ie. mm10/hg19) or to wormbase
+spec (ce11). Default is hg19/gencodegenes GTF convention.
+
+```--unstranded``` will allow for unstranded features to be selected,
+however if strand is specified in the BED file, we'll try to look for
+correctly stranded features first. If strand is not specified, we'll
+prioritize positive stranded features first.
+
+```--limit-chroms-to``` will limit the dictionary build to only
+include these chromosomes for faster processing and less memory
+footprint. Leave blank to hash all chromosomes in the db file
 
 Let me know if you have issues/questions: bay001@ucsd.edu
