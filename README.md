@@ -1,8 +1,30 @@
 # annotator
 
-Requirements: See the environments.yaml file
+Requirements: See the environments.yaml file, or:
 
-example usage: 
+```
+conda create -n annotator \
+python=2.7 \
+gffutils=0.8.7.1 \
+bedtools=2.26 \
+pybedtools=0.7.10 \
+tqdm=4.14
+
+source activate annotator
+
+conda install --override-channels \
+-c conda-forge bzip2 # fixes some weird c-library issue
+```
+
+Installation:
+```
+git clone https://github.com/byee4/annotator/
+cd annotator
+python setup.py build
+python setup.py install
+```
+
+Example Usage:
 
 ```
 annotate \
@@ -70,4 +92,4 @@ prioritize positive stranded features first.
 include these chromosomes for faster processing and less memory
 footprint. Leave blank to hash all chromosomes in the db file
 
-Let me know if you have issues/questions: bay001@ucsd.edu
+Leta me know if you have issues/questions: bay001@ucsd.edu
