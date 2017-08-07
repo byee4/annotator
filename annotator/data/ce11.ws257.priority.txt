@@ -1,0 +1,14 @@
+protein_coding,three_prime_utr
+protein_coding,five_prime_utr
+protein_coding,CDS
+protein_coding,start_codon
+protein_coding,stop_codon
+protein_coding,exon
+protein_coding,intron
+protein_coding,transcript
+non_coding,exon
+non_coding,intron
+protein_coding,downstream_gene
+protein_coding,upstream_gene
+non_coding,downstream_noncoding_transcript
+non_coding,upstream_noncoding_transcript
