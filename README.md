@@ -1,6 +1,6 @@
 # annotator
 
-Requirements: See the environments.yaml file, or:
+### Requirements: See the environments.yaml file, or:
 
 ```
 conda create -n annotator \
@@ -16,7 +16,7 @@ conda install --override-channels \
 -c conda-forge bzip2 # fixes some weird c-library issue
 ```
 
-Installation:
+### Installation:
 ```
 git clone https://github.com/byee4/annotator/
 cd annotator
@@ -24,16 +24,41 @@ python setup.py build
 python setup.py install
 ```
 
-Example Usage:
+### Download Database File
+
+[Human hg19 Gencode v19](https://s3-us-west-1.amazonaws.com/genome-references/gencode.v19.annotation.gtf.db)
+
+[Mouse mm10 Gencode vM10](https://s3-us-west-1.amazonaws.com/genome-references/gencode.vM10.annotation.db)
+
+[C. elegans WS257 extended*](https://s3-us-west-1.amazonaws.com/genome-references/c_elegans.PRJNA13758.WS257.canonical_geneset.extend_utr.gtf.db)
+
+
+* WS257 canonical geneset with extra annotations for annotating upstream/downstream transcripts
+
+### Example Usage:
 
 ```
-annotate \
+annotate-bed \
 --input BEDFILE \
 --output ANNOTATEDFILE \
 --gtfdb gencode.v19.annotation.gtf.db \
 ```
 
+### Output file:
 
+Outputs each original BED interval, plus annotation stuff:
+
+Chromosome
+Start
+Stop
+Name
+Score
+Strand
+Assigned Gene ID
+Assigned Gene Name
+Genic Region
+Genic Region Type
+All overlapping annotations
 outputs bedfile + first priority annotation + all overlapping annotations
 in this format:
 
@@ -92,4 +117,4 @@ prioritize positive stranded features first.
 include these chromosomes for faster processing and less memory
 footprint. Leave blank to hash all chromosomes in the db file
 
-Leta me know if you have issues/questions: bay001@ucsd.edu
+Let me know if you have issues/questions: bay001@ucsd.edu

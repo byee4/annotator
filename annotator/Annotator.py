@@ -543,6 +543,13 @@ class Annotator():
             return final[0].replace('exon', 'noncoding_exon').replace('intron', 'noncoding_intron')
         return final[0]
 
+    def split_string(self, priority_string):
+        if priority_string == 'INTERGENIC':
+            return 'INTERGENIC', 'INTERGENIC', 'INTERGENIC', 'INTERGENIC'
+        else:
+            fields = priority_string.split(':')
+            return fields[4], fields[5], fields[6], fields[7]
+
     def annotate(self, interval, stranded, transcript_priority, gene_priority):
         """
         Given an interval, annotates using the priority
@@ -624,8 +631,9 @@ class Annotator():
             transcript_priority,
             gene_priority
         )
+        gene, region, name, type = self.split_string(priority)
         # print(feature.start, feature.end, feature.strand, to_append)
-        return priority, to_append
+        return gene, name, region, type, to_append
 
 
 def annotate(db_file, bed_file, out_file, unstranded, chroms,
@@ -649,13 +657,13 @@ def annotate(db_file, bed_file, out_file, unstranded, chroms,
     bed_tool = pybedtools.BedTool(bed_file)
     with open(out_file, 'w') as o:
         for interval in bed_tool:  # for each line in bed file
-            priority, annotation = annotator.annotate(
+            gene, name, region, type, annotation = annotator.annotate(
                 interval, unstranded, transcript_priority, gene_priority,
             )
-            o.write('{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n'.format(
+            o.write('{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n'.format(
                 interval.chrom, interval.start,
                 interval.end, interval.name,
                 interval.score, interval.strand,
-                priority,
+                gene, name, region, type,
                 annotation
             ))
