@@ -24,7 +24,7 @@ python setup.py build
 python setup.py install
 ```
 
-### Download Database File
+### Download Database File (sqlite db files created using [gffutils](https://pythonhosted.org/gffutils/))
 
 [Human hg19 Gencode v19](https://s3-us-west-1.amazonaws.com/genome-references/gencode.v19.annotation.gtf.db)
 
@@ -32,15 +32,16 @@ python setup.py install
 
 [C. elegans WS257 extended*](https://s3-us-west-1.amazonaws.com/genome-references/c_elegans.PRJNA13758.WS257.canonical_geneset.extend_utr.gtf.db)
 
-
 * WS257 canonical geneset with extra annotations for annotating upstream/downstream transcripts
+
+In theory any other db file (built from a GTF file) should work... but use at your own risk!!!
 
 ### Example Usage:
 
 ```
 annotate-bed \
---input BEDFILE \
---output ANNOTATEDFILE \
+--input BED6_FILE \
+--output OUTPUT_FILE \
 --gtfdb gencode.v19.annotation.gtf.db \
 ```
 
@@ -48,17 +49,18 @@ annotate-bed \
 
 Outputs each original BED interval, plus annotation stuff:
 
-Chromosome
-Start
-Stop
-Name
-Score
-Strand
-Assigned Gene ID
-Assigned Gene Name
-Genic Region
-Genic Region Type
-All overlapping annotations
+- Chromosome
+- Start
+- Stop
+- Name
+- Score
+- Strand
+- Assigned Gene ID
+- Assigned Gene Name
+- Genic Region
+- Genic Region Type
+- All overlapping annotations
+
 outputs bedfile + first priority annotation + all overlapping annotations
 in this format:
 
