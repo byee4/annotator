@@ -47,7 +47,7 @@ annotate-bed \
 
 ### Output file:
 
-Outputs each original BED interval, plus annotation stuff:
+Outputs each original BED interval:
 
 - Chromosome
 - Start
@@ -55,6 +55,9 @@ Outputs each original BED interval, plus annotation stuff:
 - Name
 - Score
 - Strand
+
+Plus annotation stuff (tabbed):
+
 - Assigned Gene ID
 - Assigned Gene Name
 - Genic Region
