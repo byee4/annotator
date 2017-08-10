@@ -64,8 +64,8 @@ Plus annotation stuff (tabbed):
 - Genic Region Type
 - All overlapping annotations
 
-outputs bedfile + first priority annotation + all overlapping annotations
-in this format:
+
+All overlapping annotations should follow this format:
 
 ```transcript_id:region_start:region_stop:strand:region:gene_id:gene_name:transcript_type:overlap```
 
