@@ -12,14 +12,14 @@ setup(
     license='',
     author='brianyee',
     author_email='',
-    description='Annotate stuff',
+    description='Annotate BED files with genic information given a priority list',
     packages=['annotator'],
     package_dir={
         'annotator': 'annotator',
     },
     entry_points = {
         'console_scripts': [
-            'anno = annotator.annotate:main',
+            'annotate-bed = annotator.annotate:main',
         ]
     }
 )
