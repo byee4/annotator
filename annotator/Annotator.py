@@ -567,8 +567,8 @@ class Annotator():
         )
 
         #   If we find no overlapping features, return 'intergenic' (no feature seen)
-        if len(overlapping_features) == 0:
-            return 'INTERGENIC', 'INTERGENIC'
+        if len(overlapping_features) == 0: # gene, name, region, type, to_append
+            return 'INTERGENIC', 'INTERGENIC', 'INTERGENIC', 'INTERGENIC', 'INTERGENIC'
         to_append = ''  # full list of genes overlapping features
         transcript = defaultdict(list)
         for feature in overlapping_features:  # for each overlapping feature

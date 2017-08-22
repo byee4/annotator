@@ -70,7 +70,8 @@ def main():
     parser.add_argument(
         "--gtfdb",
         dest="gtfdb",
-        help="gtf database file create from gffutils",
+        help="gtf database file create from gffutils (Currently only "
+             "GTF files are allowed)",
         required=True
     )
     parser.add_argument(
