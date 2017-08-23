@@ -637,7 +637,8 @@ class Annotator():
 
 
 def annotate(db_file, bed_file, out_file, unstranded, chroms,
-             transcript_priority, gene_priority, species, append_chr, fuzzy):
+             transcript_priority, gene_priority, species, append_chr, fuzzy,
+             cores=4):
     """
     Given a bed6 file, return the file with an extra column containing
     '|' delimited gene annotations
@@ -655,15 +656,22 @@ def annotate(db_file, bed_file, out_file, unstranded, chroms,
     """
     annotator = Annotator(db_file, chroms, species, append_chr, fuzzy)
     bed_tool = pybedtools.BedTool(bed_file)
-    with open(out_file, 'w') as o:
-        for interval in bed_tool:  # for each line in bed file
-            gene, name, region, type, annotation = annotator.annotate(
-                interval, unstranded, transcript_priority, gene_priority,
-            )
-            o.write('{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n'.format(
-                interval.chrom, interval.start,
-                interval.end, interval.name,
-                interval.score, interval.strand,
-                gene, name, region, type,
-                annotation
-            ))
+    progress = trange(bed_tool.count())
+    lines = []
+    # with open(out_file, 'w') as o:
+    o = open(out_file, 'w')
+    for interval in bed_tool:  # for each line in bed file
+        gene, name, region, type, annotation = annotator.annotate(
+            interval, unstranded, transcript_priority, gene_priority,
+        )
+
+        lines.append('{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n'.format(
+            interval.chrom, interval.start,
+            interval.end, interval.name,
+            interval.score, interval.strand,
+            gene, name, region, type
+        ))
+        progress.update(1)
+    for line in lines:
+        o.write(line)
+    o.close()
