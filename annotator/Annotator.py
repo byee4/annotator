@@ -686,7 +686,6 @@ def annotate(db_file, bed_file, out_file, unstranded, chroms,
             chrom, int(start), int(end), name, score, strand,
             unstranded, transcript_priority, gene_priority,
         )
-
         output_lines.append('{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n'.format(
             chrom, start, end, name, score, strand,
             gene, rname, region, type
