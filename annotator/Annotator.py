@@ -1,4 +1,23 @@
-import pybedtools
+#!/usr/bin/env python
+
+# transitionning to python2/python3 support
+
+# these two are really a minimum
+
+from __future__ import print_function
+from __future__ import division
+
+# uncomment from this compatibility import list, as py3/py2 support progresses
+
+# from __future__  import absolute_import
+# from __future__  import unicode_literals
+# from future import standard_library
+# from future.builtins import builtins
+# from future.builtins import utils
+# from future.utils import raise_with_traceback
+from future.utils import iteritems
+
+# import pybedtools
 from tqdm import trange
 import gffutils
 from collections import defaultdict
@@ -266,7 +285,7 @@ class Annotator():
         
         :return: 
         """
-        for hash_val, features in self.features_dict.iteritems():
+        for hash_val, features in iteritems(self.features_dict):
             for feature in features:
                 if feature.featuretype == 'transcript':
                     for transcript_id in feature.attributes[self.trancript_id_key]:
@@ -337,8 +356,8 @@ class Annotator():
             list of gffutils.Feature objects.
         """
         features = []
-        start_key = int(qstart / HASH_VAL)
-        end_key = int(qend / HASH_VAL)
+        start_key = int(qstart // HASH_VAL)
+        end_key = int(qend // HASH_VAL)
         qstart = qstart + 1 # change 0-based bed to 1-based gff
 
         for i in range(start_key, end_key + 1):
@@ -475,12 +494,12 @@ class Annotator():
         # print("combined dict: {}".format(combined_dict))
         try:
             # print("PRIORITY: ", priority)
-            for key, _ in combined_dict.iteritems(): # append nonexisting regions to the end of the priority list
+            for key, _ in iteritems(combined_dict): # append nonexisting regions to the end of the priority list
                 if key not in priority:
                     priority.append(list(key))
             # print("PRIORITY: ",priority)
             combined_dict = sorted(  # sort based on priority list
-                combined_dict.iteritems(),
+                iteritems(combined_dict),
                 key=lambda x: priority.index([x[0][0], x[0][1]])
             )
             # print("PRIORITY: {}".format(priority))
@@ -532,7 +551,7 @@ class Annotator():
                 unique_genes[gene].append(top_transcript)
         # print("PRIORITIZING GENE!!!!!")
         ### PRIORITIZE GENE ###
-        for gene, transcripts in unique_genes.iteritems():
+        for gene, transcripts in iteritems(unique_genes):
             for transcript in transcripts:
                 final.append(transcript)
         feature_type, final = self.return_highest_priority_feature(
@@ -550,7 +569,7 @@ class Annotator():
             fields = priority_string.split(':')
             return fields[4], fields[5], fields[6], fields[7]
 
-    def annotate(self, interval, stranded, transcript_priority, gene_priority):
+    def annotate(self, chrom, start, end, name, score, strand, stranded, transcript_priority, gene_priority):
         """
         Given an interval, annotates using the priority
 
@@ -559,11 +578,7 @@ class Annotator():
         """
 
         overlapping_features = self.get_all_overlapping_features_from_query(
-            interval.chrom,
-            interval.start,
-            interval.end,
-            interval.strand,
-            stranded
+            chrom, start, end, strand, stranded
         )
 
         #   If we find no overlapping features, return 'intergenic' (no feature seen)
@@ -582,7 +597,7 @@ class Annotator():
                     transcript[transcript_id].append(
                         feature)  # append features to their respective genes
 
-        for transcript, features in transcript.iteritems():
+        for transcript, features in iteritems(transcript):
             for feature in features:
                 # if 'protein_coding' not in feature.attributes['transcript_type']:
                 #     if feature.featuretype == 'exon' or feature.featuretype == 'UTR':
@@ -631,7 +646,7 @@ class Annotator():
             transcript_priority,
             gene_priority
         )
-        gene, region, name, type = self.split_string(priority)
+        region, gene, name, type = self.split_string(priority)
         # print(feature.start, feature.end, feature.strand, to_append)
         return gene, name, region, type, to_append
 
@@ -655,21 +670,26 @@ def annotate(db_file, bed_file, out_file, unstranded, chroms,
     :return:
     """
     annotator = Annotator(db_file, chroms, species, append_chr, fuzzy)
-    bed_tool = pybedtools.BedTool(bed_file)
-    progress = trange(bed_tool.count())
+    # bed_tool = pybedtools.BedTool(bed_file)
+    # progress = trange(bed_file.count())
     lines = []
+    i = open(bed_file, 'r')
+
+    lines = i.readlines()
     # with open(out_file, 'w') as o:
     o = open(out_file, 'w')
-    for interval in bed_tool:  # for each line in bed file
-        gene, name, region, type, annotation = annotator.annotate(
-            interval, unstranded, transcript_priority, gene_priority,
+    progress = trange(len(lines))
+    # for interval in bed_tool:  # for each line in bed file
+    for line in lines:
+        chrom, start, end, name, score, strand = line.rstrip().split('\t')
+        gene, rname, region, type, annotation = annotator.annotate(
+            chrom, int(start), int(end), name, score, strand,
+            unstranded, transcript_priority, gene_priority,
         )
 
         lines.append('{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n'.format(
-            interval.chrom, interval.start,
-            interval.end, interval.name,
-            interval.score, interval.strand,
-            gene, name, region, type
+            chrom, start, end, name, score, strand,
+            gene, rname, region, type
         ))
         progress.update(1)
     for line in lines:

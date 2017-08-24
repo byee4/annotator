@@ -1,3 +1,22 @@
+#!/usr/bin/env python
+
+# transitionning to python2/python3 support
+
+# these two are really a minimum
+
+from __future__ import print_function
+from __future__ import division
+
+# uncomment from this compatibility import list, as py3/py2 support progresses
+
+from __future__  import absolute_import
+from __future__  import unicode_literals
+from future import standard_library
+# from future.builtins import builtins
+from future.builtins import utils
+from future.utils import raise_with_traceback
+from future.utils import iteritems
+
 from argparse import ArgumentParser
 from annotator import Annotator
 import sys
