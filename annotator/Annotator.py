@@ -672,7 +672,7 @@ def annotate(db_file, bed_file, out_file, unstranded, chroms,
     annotator = Annotator(db_file, chroms, species, append_chr, fuzzy)
     # bed_tool = pybedtools.BedTool(bed_file)
     # progress = trange(bed_file.count())
-    lines = []
+    output_lines = []
     i = open(bed_file, 'r')
 
     lines = i.readlines()
@@ -687,11 +687,11 @@ def annotate(db_file, bed_file, out_file, unstranded, chroms,
             unstranded, transcript_priority, gene_priority,
         )
 
-        lines.append('{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n'.format(
+        output_lines.append('{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n'.format(
             chrom, start, end, name, score, strand,
             gene, rname, region, type
         ))
         progress.update(1)
-    for line in lines:
+    for line in output_lines:
         o.write(line)
     o.close()
