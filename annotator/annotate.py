@@ -18,7 +18,7 @@ from future.utils import raise_with_traceback
 from future.utils import iteritems
 
 from argparse import ArgumentParser
-import annotate_bed
+from annotator import annotate_bed
 import sys
 
 GENE_PRIORITY = [
@@ -55,7 +55,7 @@ TRANSCRIPT_PRIORITY = [
     ['non_coding','Selenocysteine'],
 ]
 
-def parse(priority_file, delim=','):
+def parse_annotation_priority(priority_file, delim=','):
     """
     From a comma delimited file, return a list of lists
     describing the priority with which to annotate stuff.
@@ -143,14 +143,6 @@ def main():
         nargs='+',
         default=[]
     )
-    parser.add_argument(
-        "--cores",
-        dest="cores",
-        required=False,
-        help="number of cores/processors to use (default 1)",
-        type=int,
-        default=1
-    )
     try:
         args = parser.parse_args()
     except:
@@ -164,25 +156,27 @@ def main():
     unstranded = args.unstranded
     species = args.species
     append_chr = args.append_chr
-    cores = args.cores
+    cores = 1  # TODO: implement later
     fuzzy = 0  # TODO: implement later - unnecessary now
 
+    ### Flipping this terminology to make it easier to understand
     if unstranded:
         stranded=False
     else:
         stranded=True
 
+    ### If appropriate priorities are unassigned, assign to defaults
     if args.transcript_priority_file is not None:
-        transcript_priority = parse(args.transcript_priority_file)
+        transcript_priority = parse_annotation_priority(args.transcript_priority_file)
     else:
         transcript_priority = TRANSCRIPT_PRIORITY
 
     if args.gene_priority_file is not None:
-        gene_priority = parse(args.gene_priority_file)
+        gene_priority = parse_annotation_priority(args.gene_priority_file)
     else:
         gene_priority = GENE_PRIORITY
 
-
+    ### Call main function
     annotate_bed.annotate_bed(
         gtfdb_file, input_bed_file, output_annotated_file, stranded, chroms,
         transcript_priority, gene_priority, species, append_chr, fuzzy, cores
