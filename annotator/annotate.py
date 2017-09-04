@@ -18,7 +18,7 @@ from future.utils import raise_with_traceback
 from future.utils import iteritems
 
 from argparse import ArgumentParser
-from annotator import Annotator
+import annotate_bed
 import sys
 
 GENE_PRIORITY = [
@@ -143,6 +143,14 @@ def main():
         nargs='+',
         default=[]
     )
+    parser.add_argument(
+        "--cores",
+        dest="cores",
+        required=False,
+        help="number of cores/processors to use (default 1)",
+        type=int,
+        default=1
+    )
     try:
         args = parser.parse_args()
     except:
@@ -156,6 +164,7 @@ def main():
     unstranded = args.unstranded
     species = args.species
     append_chr = args.append_chr
+    cores = args.cores
     fuzzy = 0  # TODO: implement later - unnecessary now
 
     if unstranded:
@@ -174,9 +183,9 @@ def main():
         gene_priority = GENE_PRIORITY
 
 
-    Annotator.annotate(
+    annotate_bed.annotate_bed(
         gtfdb_file, input_bed_file, output_annotated_file, stranded, chroms,
-        transcript_priority, gene_priority, species, append_chr, fuzzy
+        transcript_priority, gene_priority, species, append_chr, fuzzy, cores
     )
 
 if __name__ == "__main__":
