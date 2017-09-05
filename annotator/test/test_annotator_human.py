@@ -51,6 +51,47 @@ def test_get_all_cds_dict_1():
     assert cds['low'] == 5032902
     assert cds['hi'] == 5151519
 
+def test_find_introns_1():
+    print(
+        "Tests the basic functionality of the intron inferring "
+        "method. Assumes 'start' and 'end' refer to the lowest "
+        "and highest coordinates regardless of strand. This"
+        "test tests the lowest negatively stranded transcript."
+    )
+    transcript_id = 'ENST00000394173.4'
+    transcript = transcripts_dict[transcript_id]
+    exons = exons_dict[transcript_id]
+    introns = a.find_introns(transcript, exons)
+    assert introns[0]['start'] == 7808127
+    assert introns[0]['end'] == 7808992
+
+def test_find_introns_2():
+    print(
+        "Tests the basic functionality of the intron inferring "
+        "method. Assumes 'start' and 'end' refer to the lowest "
+        "and highest coordinates regardless of strand. This"
+        "test tests the lowest positively stranded transcript."
+    )
+    transcript_id = 'ENST00000587541.1'
+    transcript = transcripts_dict[transcript_id]
+    exons = exons_dict[transcript_id]
+    introns = a.find_introns(transcript, exons)
+    assert introns[0]['start'] == 490040
+    assert introns[0]['end'] == 501668
+
+def test_find_introns_3():
+    print(
+        "Tests the basic functionality of the intron inferring "
+        "method. Assumes 'start' and 'end' refer to the lowest "
+        "and highest coordinates regardless of strand. This"
+        "tests that a single exon transcript has no intron"
+    )
+    transcript_id = 'ENST00000589943.1'
+    transcript = transcripts_dict[transcript_id]
+    exons = exons_dict[transcript_id]
+    introns = a.find_introns(transcript, exons)
+    assert len(introns) == 0
+
 def test_classify_utr_1():
     print(
         "Tests whether or not we're correctly classifying "
@@ -94,7 +135,7 @@ def test_annotate_prioritize_cds_1():
     type_key = 'transcript_type'
 
     chrom, start, end, name, score, strand, \
-    gene, rname, region, type, annotation = a.annotate(
+    gene, rname, region, annotation = a.annotate(
         qchrom, qstart, qstop, qname, qscore, qstrand,
         stranded, region_priority, region_priority,
         features_dict, cds_dict, transcript_id_key, type_key
@@ -103,7 +144,6 @@ def test_annotate_prioritize_cds_1():
     assert rname == 'KDM4B'
     assert gene == 'ENSG00000127663.10'
     assert region == 'CDS'
-    assert type == 'protein_coding'
 
 def test_annotate_prioritize_noncoding_exon_1():
     print("Tests annotation priority for overlapping transcripts (+). "
@@ -128,7 +168,7 @@ def test_annotate_prioritize_noncoding_exon_1():
     type_key = 'transcript_type'
 
     chrom, start, end, name, score, strand, \
-    gene, rname, region, type, annotation = a.annotate(
+    gene, rname, region, annotation = a.annotate(
         qchrom, qstart, qstop, qname, qscore, qstrand,
         stranded, region_priority, region_priority,
         features_dict, cds_dict, transcript_id_key, type_key
@@ -160,7 +200,7 @@ def test_annotate_prioritize_noncoding_exon_2():
     type_key = 'transcript_type'
 
     chrom, start, end, name, score, strand, \
-    gene, rname, region, type, annotation = a.annotate(
+    gene, rname, region, annotation = a.annotate(
         qchrom, qstart, qstop, qname, qscore, qstrand,
         stranded, region_priority, region_priority,
         features_dict, cds_dict, transcript_id_key, type_key
@@ -191,7 +231,7 @@ def test_annotate_cds_2():
     type_key = 'transcript_type'
 
     chrom, start, end, name, score, strand, \
-    gene, rname, region, type, annotation = a.annotate(
+    gene, rname, region, annotation = a.annotate(
         qchrom, qstart, qstop, qname, qscore, qstrand,
         stranded, region_priority, region_priority,
         features_dict, cds_dict, transcript_id_key, type_key
@@ -200,3 +240,100 @@ def test_annotate_cds_2():
     assert region == 'CDS'
     assert rname == 'PLIN3'
     assert gene == 'ENSG00000105355.4'
+
+
+def test_intergenic_1():
+    print("Tests a region that is intergenic (+)")
+
+    qchrom = 'chr19'
+    qstart = 10050000
+    qstop = 10006000
+    qname = 'intergenic'
+    qscore = 0
+    qstrand = '+'
+    region_priority = [
+        ['protein_coding', '3utr'],
+        ['protein_coding', '5utr'],
+        ['protein_coding', 'CDS'],
+    ]
+
+    stranded = True,
+    chrom, start, end, name, score, strand, \
+    gene, rname, region, annotation = a.annotate(
+        qchrom, qstart, qstop, qname, qscore, qstrand,
+        stranded, region_priority, region_priority,
+        features_dict, cds_dict, transcript_id_key, type_key
+    )
+    print(annotation)
+    assert rname == 'intergenic'  # don't know which transcript is returned, should clear that up
+    assert region == 'intergenic'
+
+def test_utr_classification_1():
+    print("This tests the same region (chr11:70266235-70266302:+ "
+          "as test_utr_classification_2, but re-orders the priority "
+          "such that 5utr is higher than 5utr. Supposed to return 5utr")
+    chroms = ['chr11']
+    db = 'test/data/gencode.v19.annotation.chr11.70M-71M.gtf.db'
+    species = 'hg19'
+
+    geneid_to_name_dict, exons_dict, \
+    transcripts_dict, cds_dict, features_dict, \
+    cds_key, utr3_key, utr5_key, utr_key, \
+    gene_name_key, transcript_id_key, type_key = a.create_definitions(
+        db, chroms, species
+    )
+    qchrom = 'chr11'
+    qstart = 70266235
+    qstop = 70266302
+    qname = 'CTTN'
+    qscore = 0
+    qstrand = '+'
+    region_priority = [
+        ['protein_coding', '5utr'],
+        ['protein_coding', '3utr'],
+        ['protein_coding', 'CDS'],
+    ]
+
+    stranded = True,
+    chrom, start, end, name, score, strand, \
+    gene, rname, region, annotation = a.annotate(
+        qchrom, qstart, qstop, qname, qscore, qstrand,
+        stranded, region_priority, region_priority,
+        features_dict, cds_dict, transcript_id_key, type_key
+    )
+    assert region == '5utr'
+
+def test_utr_classification_2():
+    print("This tests the same region (chr11:70266235-70266302:+ "
+          "as test_utr_classification_1, but re-orders the priority "
+          "such that 3utr is higher than 5utr. Supposed to return 3utr")
+    chroms = ['chr11']
+    db = 'test/data/gencode.v19.annotation.chr11.70M-71M.gtf.db'
+    species = 'hg19'
+
+    geneid_to_name_dict, exons_dict, \
+    transcripts_dict, cds_dict, features_dict, \
+    cds_key, utr3_key, utr5_key, utr_key, \
+    gene_name_key, transcript_id_key, type_key = a.create_definitions(
+        db, chroms, species
+    )
+    qchrom = 'chr11'
+    qstart = 70266235
+    qstop = 70266302
+    qname = 'CTTN'
+    qscore = 0
+    qstrand = '+'
+    region_priority = [
+        ['protein_coding', '3utr'],
+        ['protein_coding', '5utr'],
+        ['protein_coding', 'CDS'],
+    ]
+
+    stranded = True,
+    chrom, start, end, name, score, strand, \
+    gene, rname, region, annotation = a.annotate(
+        qchrom, qstart, qstop, qname, qscore, qstrand,
+        stranded, region_priority, region_priority,
+        features_dict, cds_dict, transcript_id_key, type_key
+    )
+    assert region == '3utr'

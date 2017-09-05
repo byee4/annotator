@@ -24,6 +24,7 @@ from collections import defaultdict
 from collections import OrderedDict
 import copy
 import sys
+import csv
 import multiprocessing
 import concurrent.futures
 from itertools import chain
@@ -167,7 +168,6 @@ def gene_id_to_name(db, gene_name_key):
             sys.exit(1)
     return gene_name_dict
 
-
 def hash_features(db, chromosomes, append_chr, fuzzy, exons_dict, transcripts_dict, transcript_id_key, featuretypes):
     """
     hashes features by position.
@@ -270,11 +270,11 @@ def get_all_transcripts_dict(db, transcript_id_key):
     return transcripts_dict
 
 
-
 def find_introns(transcript, exons):
     """
     Given transcript coordinates and a list of exons,
-    return a list of introns (inverse coordinates)
+    return a list of introns (inverse coordinates of exons)
+    This is 1-based inclusive, given 1-based inclusive exon coords
 
     :param transcript: dictionary
         {'start':int, 'end':int}
@@ -357,9 +357,7 @@ def classify_utr(utr_feature, cds_dict):
             if cds_dict[transcript_id]['hi'] < utr_feature.start + 1:
                 five_prime_utr = True
 
-    if five_prime_utr and three_prime_utr:
-        return '5utr_and_3utr'
-    elif five_prime_utr:
+    if five_prime_utr:
         return '5utr'
         # return 'five_prime_utr'
     elif three_prime_utr:
@@ -543,8 +541,67 @@ def return_highest_priority_feature(formatted_features, priority):
         print(combined_dict)
     return combined_dict[0]
 
+def prioritize_transcript(unique_transcript_features, transcript_priority):
+    """
+    Given a dictionary of features, return a dictionary containing
+    a singular transcript for each unique gene in the feature set.
+
+    :param unique_transcript_features: defaultdict[list]
+        dictionary where keys = transcript ids and values = list of
+        features associated with each transcript that overlaps with a query
+        (ie. {'ENSTXYZ':['CDS', 'exon', 'transcript']}
+    :param transcript_priority: list[tuple]
+        list of tuples (featuretype, transcripttype)
+    :return unique_genes: defaultdict[list]
+    """
+    unique_transcripts = defaultdict(list)
+    unique_genes = defaultdict(list)
+
+
+    if len(unique_transcript_features.keys()) == 0:
+        return 'intergenic'
+
+    ### PRIORITIZE TRANSCRIPT ###
+    for transcript in unique_transcript_features.keys():  # For each unique transcript
+        top_transcript = return_highest_priority_feature(
+            unique_transcript_features[transcript],
+            transcript_priority
+        )[1][0]  # [0] contains the dictionary key
+        # unique_transcripts[transcript].append(
+        #     top_transcript
+        # )
+        # add gene key
+        gene_list = top_transcript.split(':')[5].split(',')
+        for gene in gene_list:
+            unique_genes[gene].append(top_transcript)
+    return unique_genes
+
+def prioritize_genes(unique_genes, gene_priority):
+    final_transcripts = []
+    final_transcripts_append = final_transcripts.append
+    for gene, transcripts in iteritems(unique_genes):
+        for transcript in transcripts:
+            final_transcripts_append(transcript)
+
+    feature_type, final_genes = return_highest_priority_feature(
+        final_transcripts, gene_priority
+    )
+
+    if feature_type[0] == 'non_coding':  # TODO: fix. hacky
+        ff = []
+        for f in sorted(final_genes):
+            f = f.replace(
+                'exon', 'noncoding_exon'
+            ).replace(
+                'intron', 'noncoding_intron'
+            )
+            ff.append(f)
+        return ff
+    else:
+        return sorted(final_genes)
+
 def prioritize_transcript_then_gene(
-        formatted_features, transcript_priority, gene_priority):
+        formatted_features, transcript_priority, gene_priority, parent='gene'):
     """
     Given a list of features, group them first by transcript
     and return the highest priority feature for each transcript.
@@ -552,60 +609,48 @@ def prioritize_transcript_then_gene(
     return the highest priority feature.
 
     :param formatted_features: list[string]
-    :param transcript_priority: list of tuples (featuretype, transcripttype)
-    :param gene_priority: list of tuples (featuretype, transcripttype
-    :return priority: string
+        list of features as string representation
+    :param transcript_priority: list
+        list of tuples (featuretype, transcripttype)
+    :param gene_priority: list
+        list of tuples (featuretype, transcripttype
+    :param parent: string
+        the highest/most general annotation in the schema (usually gene).
+    :return top_gene: string
+        string representation of the highest priority feature
+        after sorting by transcript priority, then by
+        gene priority
     """
-    unique_transcript_features = defaultdict(list)
     unique_transcripts = defaultdict(list)
-    unique_genes = defaultdict(list)
-    final = []
-    final_append = final.append
+
     for feature_string in formatted_features:
-        if feature_string.split(':')[4] != 'gene':
+        if feature_string.split(':')[4] != parent:
             transcript = feature_string.split(':')[0]
-            unique_transcript_features[transcript].append(
-                feature_string)
+            unique_transcripts[transcript].append(
+                feature_string
+            )
 
-    if len(unique_transcript_features.keys()) == 0:
-        return 'intergenic'
-    # print("PRIORITIZING TRANSCRIPT!!!!!")
-    ### PRIORITIZE TRANSCRIPT ###
-    for transcript in unique_transcript_features.keys():  # For each unique transcript
-        top_transcript = return_highest_priority_feature(
-            unique_transcript_features[transcript],
-            transcript_priority
-        )[1][0]  # [0] contains the dictionary key
-        unique_transcripts[transcript].append(
-            top_transcript
-        )
-        # add gene key
-        gene_list = top_transcript.split(':')[5].split(',')
-        for gene in gene_list:
-            unique_genes[gene].append(top_transcript)
-    # print("PRIORITIZING GENE!!!!!")
-    ### PRIORITIZE GENE ###
-    for gene, transcripts in iteritems(unique_genes):
-        for transcript in transcripts:
-            final_append(transcript)
-    feature_type, final = return_highest_priority_feature(
-        final, gene_priority
-    )
+    unique_genes = prioritize_transcript(unique_transcripts, transcript_priority)
+    top_gene = prioritize_genes(unique_genes, gene_priority)
+    return top_gene
 
-    if feature_type[0] == 'non_coding':  # TODO: fix. hacky
-        return final[0].replace(
-            'exon', 'noncoding_exon'
-        ).replace(
-            'intron', 'noncoding_intron'
-        )
-    return final[0]
+def split_string(priority_string, delimiter=':'):
+    """
+    Parses/splits a string with an expected format and returns
+    three important fields: region, gene_id, gene_name. Returns
+    'intergenic' for all three fields if intergenic
 
-def split_string(priority_string):
+    :param priority_string: string
+        colon-delimited string containing region geneid and
+        genename in fields 4-6 (0-based).
+
+    :return region, gene_id, gene_name:
+    """
     if priority_string == 'intergenic':
-        return 'intergenic', 'intergenic', 'intergenic', 'intergenic'
+        return 'intergenic', 'intergenic', 'intergenic'
     else:
-        fields = priority_string.split(':')
-        return fields[4], fields[5], fields[6], fields[7]
+        fields = priority_string.split(delimiter)
+        return fields[4], fields[5], fields[6]
 
 def annotate(
         chrom, start, end, name, score, strand,
@@ -628,7 +673,7 @@ def annotate(
     if len(overlapping_features) == 0: # gene, name, region, type, to_append
         return chrom, start, end, name, score, strand, \
                'intergenic' , 'intergenic', \
-               'intergenic', 'intergenic', 'intergenic'
+               'intergenic', 'intergenic'
     to_append = ''  # full list of genes overlapping features
     transcript = defaultdict(list)
     for feature in overlapping_features:  # for each overlapping feature
@@ -645,9 +690,6 @@ def annotate(
     for transcript, features in iteritems(transcript):
         for feature in features:
             append_count += 1
-            # if 'protein_coding' not in feature.attributes['transcript_type']:
-            #     if feature.featuretype == 'exon' or feature.featuretype == 'UTR':
-            #         feature.featuretype = 'noncoding_exon'
             if feature.featuretype == 'UTR':  # if we only have UTR, specify what kind of UTR (3' or 5').
                 feature.featuretype = classify_utr(feature, cds_dict)
             to_append += "{}:{}:{}:{}:{}:".format(
@@ -688,17 +730,25 @@ def annotate(
 
     to_append = to_append[:-1]
 
-    if append_count == 1:
-        priority = to_append
+    if append_count == 1:  # if just one region, save computation by returning it.
+        region, gene, rname = split_string(to_append)
     else:
         priority = prioritize_transcript_then_gene(
             parse_annotation_string(to_append),
             transcript_priority,
             gene_priority
         )
-    region, gene, name, type = split_string(priority)
+        region, gene, rname = split_string(priority[0])
+        for highest_priority_gene in priority[1:]:
+            current_region, current_gene, current_rname = split_string(highest_priority_gene)
+            assert region == current_region  # there should really just be one highest priority region.
+            ### if the highest priority region contains multiple genes, return all
+            if gene != current_gene:
+                gene = gene + ',' + current_gene
+            if rname != current_rname:
+                rname = rname + ',' + current_rname
     # print(feature.start, feature.end, feature.strand, to_append)
-    return chrom, start, end, name, score, strand, gene , name, region, type, to_append
+    return chrom, start, end, name, score, strand, gene , rname, region, to_append
 
 def split_bed_interval(bed_string):
     """
@@ -714,6 +764,43 @@ def split_bed_interval(bed_string):
 def annotate_bed_multi_core(cores, lines, stranded, transcript_priority,
                             gene_priority, cds_dict, features_dict,
                             transcript_id_key, type_key, out_file):
+    """
+    Instead of a single line, annotate on all lines using a
+    multiprocessing module.
+
+    :param cores: number of cores to use
+    :param lines: list[string]
+        list of lines from a BED file
+    :param stranded: boolean
+        if True, search for features on the same strand only. If
+        False, search for same-stranded features, but also search
+        opposite-stranded features if there is no overlapping
+        same-strand feature available. If strand isn't specified
+        in the BED file, search positive stranded features first.
+    :param transcript_priority: list
+        list of lists [['protein_coding','cds'],...] which explicitly
+        order the priority by which features are annotated among
+        transcripts.
+    :param gene_priority: list
+        list of lists [['protein_coding','cds'],...] which explicitly
+        order the priority by which features are annotated among
+        genes.
+    :param cds_dict: dict
+        dictionary of CDS start/end positions for each transcript
+        see: get_all_cds_dict()
+    :param features_dict: dict
+        multilevel dictionary containing all features in all specified
+        chromosomes.
+    :param transcript_id_key: string
+        identifier in GTF file that specifies transcript_id
+        (ie. transcript_id)
+    :param type_key: string
+        identifier in GTF file that specifies the biotype
+        (ie. transcript_type)
+    :param out_file: string
+        output file to write to disk.
+    :return:
+    """
     ### create shared-in-memory objects
     manager = multiprocessing.Manager()
     shared_cds_dict = manager.dict(cds_dict)
@@ -745,54 +832,47 @@ def annotate_bed_multi_core(cores, lines, stranded, transcript_priority,
         progress.update(1)
     o.close()
 
-    """
-    for line in lines:
-        chrom, start, end, name, score, strand = split_bed_interval(line)
-
-        fs.append(
-            po.apply_async(annotate, (
-                chrom, start, end, name, score, strand,
-                stranded, transcript_priority, gene_priority,
-                shared_features_dict, shared_cds_dict,
-                transcript_id_key, type_key
-            ))
-        )
-        progress.update(1)
-    po.close()
-
-    po.join()
-    progress = trange(len(lines), desc='writing to disk')
-    for r in fs:
-        o.write('\t'.join(str(x) for x in r.get(timeout=0.5)) + '\n')
-        progress.update(1)
-    o.close()
-    """
-
-def annotate_bed_multi_thread(threads, lines, stranded, transcript_priority,
-                            gene_priority, cds_dict, features_dict,
-                            transcript_id_key, type_key, out_file):
-    fs = []
-    o = open(out_file, 'w')
-    progress = trange(len(lines), desc='adding to pool', leave=False)
-    with concurrent.futures.ThreadPoolExecutor(threads) as executor:
-        for line in lines:
-            chrom, start, end, name, score, strand = split_bed_interval(line)
-            fs.append(executor.submit(
-                annotate, chrom, start, end, name, score, strand,
-                stranded, transcript_priority, gene_priority,
-                features_dict, cds_dict, transcript_id_key, type_key
-            ))
-            progress.update(1)
-    progress = trange(len(lines), desc='writing to disk', leave=False)
-    for f in concurrent.futures.as_completed(fs):
-        o.write('\t'.join([str(r) for r in f.result()]) + "\n")
-        progress.update(1)
-    o.close()
-
 
 def annotate_bed_single_core(line, stranded, transcript_priority,
                             gene_priority, cds_dict, features_dict,
                             transcript_id_key, type_key, progress):
+    """
+    Annotates a bed6-formatted line given dictionaries containing
+    cds and genic positions, and priority lists.
+
+    :param line: string
+
+    :param stranded: boolean
+        if True, search for features on the same strand only. If
+        False, search for same-stranded features, but also search
+        opposite-stranded features if there is no overlapping
+        same-strand feature available. If strand isn't specified
+        in the BED file, search positive stranded features first.
+    :param transcript_priority: list
+        list of lists [['protein_coding','cds'],...] which explicitly
+        order the priority by which features are annotated among
+        transcripts.
+    :param gene_priority: list
+        list of lists [['protein_coding','cds'],...] which explicitly
+        order the priority by which features are annotated among
+        genes.
+    :param cds_dict: dict
+        dictionary of CDS start/end positions for each transcript
+        see: get_all_cds_dict()
+    :param features_dict: dict
+        multilevel dictionary containing all features in all specified
+        chromosomes.
+    :param transcript_id_key: string
+        identifier in GTF file that specifies transcript_id
+        (ie. transcript_id)
+    :param type_key: string
+        identifier in GTF file that specifies the biotype
+        (ie. transcript_type)
+
+    :param progress: tqdm.tqdm()
+        tqdm progress object
+    :return:
+    """
     chrom, start, end, name, score, strand = split_bed_interval(line)
     result = annotate(
         chrom, start, end, name, score, strand,
@@ -831,8 +911,6 @@ def annotate_bed(db_file, bed_file, out_file, stranded, chroms,
     gene_name_key, transcript_id_key, type_key = create_definitions(
         db_file, chroms=chroms, species=species, append_chr=append_chr, fuzzy=fuzzy
     )
-    import csv
-    o = open(out_file, 'w')
 
     i = open(bed_file, 'r')
     lines = i.readlines()
@@ -840,12 +918,11 @@ def annotate_bed(db_file, bed_file, out_file, stranded, chroms,
     with open(out_file, 'w') as o:
         writer = csv.writer(o, delimiter='\t')
         writer.writerows([
-            annotate_bed_single_core(
+            annotate_bed_single_core(  # TODO: implement multicore method
                 line, stranded, transcript_priority,
                 gene_priority, cds_dict, features_dict,
                 transcript_id_key, type_key, progress
             ) for line in lines]
         )
     i.close()
-    print('gene priority', gene_priority)
-    print('transcript priority', transcript_priority)
+    return 0

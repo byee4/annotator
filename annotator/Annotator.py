@@ -25,6 +25,7 @@ from collections import OrderedDict
 import copy
 import sys
 
+
 HASH_VAL = 1000000
 MAXVAL = 1000000000
 MINVAL = 0
@@ -49,7 +50,7 @@ class Annotator():
             self.utr5_key = 'five_prime_UTR'
             self.utr_key = None
             self.gene_name_key = 'gene_id'
-            self.trancript_id_key = 'transcript_id'
+            self.transcript_id_key = 'transcript_id'
             self.type_key = 'transcript_biotype'
         else:
             self.cds_key = 'CDS'
@@ -57,7 +58,7 @@ class Annotator():
             self.utr5_key = None # in human/mice, this key doesn't really exist
             self.utr_key = 'UTR'
             self.gene_name_key = 'gene_name'
-            self.trancript_id_key = 'transcript_id'
+            self.transcript_id_key = 'transcript_id'
             self.type_key = 'transcript_type'
 
         self.num_features = 0
@@ -67,8 +68,6 @@ class Annotator():
         self._featuretypes = [x.lower() for x in list(self._db.featuretypes())]
 
         progress.update(1)
-
-        print("featuretypes = {}".format(self._featuretypes))
 
         progress.set_description("Building gene ids -> gene names dictionary")
         self._geneid_to_name_dict = self._gene_id_to_name()
@@ -250,7 +249,7 @@ class Annotator():
         """
         exons_dict = defaultdict(list)
         for exon_feature in self._db.features_of_type('exon'):
-            for transcript_id in exon_feature.attributes[self.trancript_id_key]:
+            for transcript_id in exon_feature.attributes[self.transcript_id_key]:
                 exons_dict[transcript_id].append(
                     {
                         'start': exon_feature.start,
@@ -268,7 +267,7 @@ class Annotator():
         """
         transcripts_dict = defaultdict(dict)
         for transcript_feature in self._db.features_of_type('transcript'):
-            for transcript_id in transcript_feature.attributes[self.trancript_id_key]:
+            for transcript_id in transcript_feature.attributes[self.transcript_id_key]:
                 transcripts_dict[transcript_id] = {
                     'start': transcript_feature.start,
                     'end': transcript_feature.end
@@ -288,7 +287,7 @@ class Annotator():
         for hash_val, features in iteritems(self.features_dict):
             for feature in features:
                 if feature.featuretype == 'transcript':
-                    for transcript_id in feature.attributes[self.trancript_id_key]:
+                    for transcript_id in feature.attributes[self.transcript_id_key]:
                         exons = self.exons_dict[transcript_id]
                         transcript = self.transcripts_dict[transcript_id]
                         introns = self._find_introns(transcript, exons)
@@ -590,9 +589,9 @@ class Annotator():
             #   for M10 annotations, I see gene featuretypes without transcript_ids.
             #   That's fine. We can re-construct genes from the transcript features, so ignore
             #   anything that doesn't have a transcript_id in it.
-            if self.trancript_id_key in feature.attributes.keys():
+            if self.transcript_id_key in feature.attributes.keys():
                 for transcript_id in feature.attributes[
-                    self.trancript_id_key
+                    self.transcript_id_key
                 ]:  # multiple genes can be associated with one feature
                     transcript[transcript_id].append(
                         feature)  # append features to their respective genes
@@ -648,8 +647,18 @@ class Annotator():
         )
         region, gene, name, type = self.split_string(priority)
         # print(feature.start, feature.end, feature.strand, to_append)
-        return gene, name, region, type, to_append
+        return priority # gene, name, region, type, to_append
 
+def split_bed_interval(bed_string):
+    bed = bed_string.rstrip().split('\t')
+    return bed[0], int(bed[1]), int(bed[2]), bed[3], bed[4], bed[5]
+
+def process(line, annotator, unstranded, transcript_priority, gene_priority):
+    chrom, start, end, name, score, strand = split_bed_interval(line)
+    return annotator.annotate(
+        chrom, int(start), int(end), name, score, strand,
+        unstranded, transcript_priority, gene_priority
+    )
 
 def annotate(db_file, bed_file, out_file, unstranded, chroms,
              transcript_priority, gene_priority, species, append_chr, fuzzy,
@@ -672,7 +681,6 @@ def annotate(db_file, bed_file, out_file, unstranded, chroms,
     annotator = Annotator(db_file, chroms, species, append_chr, fuzzy)
     # bed_tool = pybedtools.BedTool(bed_file)
     # progress = trange(bed_file.count())
-    output_lines = []
     i = open(bed_file, 'r')
 
     lines = i.readlines()
@@ -680,17 +688,11 @@ def annotate(db_file, bed_file, out_file, unstranded, chroms,
     o = open(out_file, 'w')
     progress = trange(len(lines))
     # for interval in bed_tool:  # for each line in bed file
-    for line in lines:
-        chrom, start, end, name, score, strand = line.rstrip().split('\t')
-        gene, rname, region, type, annotation = annotator.annotate(
-            chrom, int(start), int(end), name, score, strand,
-            unstranded, transcript_priority, gene_priority,
-        )
-        output_lines.append('{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n'.format(
-            chrom, start, end, name, score, strand,
-            gene, rname, region, type
-        ))
-        progress.update(1)
+
+    output_lines = []
+    with concurrent.futures.ProcessPoolExecutor(8) as executor:
+        for line in lines:
+            output_lines.append(executor.submit(line, annotator, unstranded, transcript_priority, gene_priority))
     for line in output_lines:
-        o.write(line)
+        o.write(line + '\n')
     o.close()

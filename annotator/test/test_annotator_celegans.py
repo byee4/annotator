@@ -74,14 +74,13 @@ def test_annotate_prioritize_cds_1():
     type_key = 'transcript_biotype'
 
     chrom, start, end, name, score, strand, \
-    gene, rname, region, type, annotation = a.annotate(
+    gene, rname, region, annotation = a.annotate(
         qchrom, qstart, qstop, qname, qscore, qstrand,
         stranded, region_priority, region_priority,
         features_dict, cds_dict, transcript_id_key, type_key
     )
-    assert rname == 'H10E21.3b'
+    assert rname == 'H10E21.3a,H10E21.3b'
     assert region == 'CDS'
-    assert type == 'protein_coding'
 
 def test_annotate_prioritize_cds_2():
     print("Tests annotation priority for overlapping transcripts (-). "
@@ -104,14 +103,13 @@ def test_annotate_prioritize_cds_2():
 
     stranded = True,
     chrom, start, end, name, score, strand, \
-    gene, rname, region, type, annotation = a.annotate(
+    gene, rname, region, annotation = a.annotate(
         qchrom, qstart, qstop, qname, qscore, qstrand,
         stranded, region_priority, region_priority,
         features_dict, cds_dict, transcript_id_key, type_key
     )
-    assert rname == 'H10E21.3a' or rname == 'H10E21.3b'
+    assert rname == 'H10E21.3a,H10E21.3b'
     assert region == 'CDS'
-    assert type == 'protein_coding'
 
 def test_annotate_prioritize_1():
     print("Tests annotation priority for overlapping transcripts (+). "
@@ -134,7 +132,7 @@ def test_annotate_prioritize_1():
     qstrand = '+'
     stranded = True,
     chrom, start, end, name, score, strand, \
-    gene, rname, region, type, annotation = a.annotate(
+    gene, rname, region, annotation = a.annotate(
         qchrom, qstart, qstop, qname, qscore, qstrand,
         stranded, region_priority, region_priority,
         features_dict, cds_dict, transcript_id_key, type_key
@@ -142,7 +140,6 @@ def test_annotate_prioritize_1():
     print(annotation)
     assert rname == 'H10E21.1b'
     assert region == 'CDS'
-    assert type == 'protein_coding'
 
 def test_annotate_prioritize_2():
     print("Tests annotation priority for overlapping transcripts (+). "
@@ -165,7 +162,7 @@ def test_annotate_prioritize_2():
     qstrand = '+'
     stranded = True,
     chrom, start, end, name, score, strand, \
-    gene, rname, region, type, annotation = a.annotate(
+    gene, rname, region, annotation = a.annotate(
         qchrom, qstart, qstop, qname, qscore, qstrand,
         stranded, region_priority, region_priority,
         features_dict, cds_dict, transcript_id_key, type_key
@@ -173,7 +170,6 @@ def test_annotate_prioritize_2():
     print(annotation)
     assert rname == 'H10E21.1a'
     assert region == 'five_prime_utr'
-    assert type == 'protein_coding'
 
 def test_annotate_prioritize_3():
     print("Tests annotation priority for overlapping transcripts (+). "
@@ -196,7 +192,7 @@ def test_annotate_prioritize_3():
     qstrand = '+'
     stranded = True,
     chrom, start, end, name, score, strand, \
-    gene, rname, region, type, annotation = a.annotate(
+    gene, rname, region, annotation = a.annotate(
         qchrom, qstart, qstop, qname, qscore, qstrand,
         stranded, region_priority, region_priority,
         features_dict, cds_dict, transcript_id_key, type_key
@@ -204,7 +200,6 @@ def test_annotate_prioritize_3():
     print(annotation)
     assert rname == 'H10E21.1a' or rname == 'H10E21.1b'  # don't know which transcript is returned, should clear that up
     assert region == 'five_prime_utr'
-    assert type == 'protein_coding'
 
 def test_annotate_prioritize_4():
     print("Tests annotation priority for overlapping transcripts (-/+). "
@@ -228,7 +223,7 @@ def test_annotate_prioritize_4():
 
     stranded = True,
     chrom, start, end, name, score, strand, \
-    gene, rname, region, type, annotation = a.annotate(
+    gene, rname, region, annotation = a.annotate(
         qchrom, qstart, qstop, qname, qscore, qstrand,
         stranded, region_priority, region_priority,
         features_dict, cds_dict, transcript_id_key, type_key
@@ -236,4 +231,3 @@ def test_annotate_prioritize_4():
     print(annotation)
     assert rname == 'H10E21.1a' or rname == 'H10E21.1b'  # don't know which transcript is returned, should clear that up
     assert region == 'five_prime_utr'
-    assert type == 'protein_coding'
