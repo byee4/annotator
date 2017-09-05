@@ -75,9 +75,8 @@ All overlapping annotations should follow this format:
 - protein_coding CDS
 - protein_coding start_codon
 - protein_coding stop_codon
-- protein_coding THREE_AND_FIVE_PRIME_UTR
-- protein_coding 5UTR
-- protein_coding 3UTR
+- protein_coding 5utr
+- protein_coding 3utr
 - protein_coding intron
 - protein_coding Selenocysteine
 - non_coding exon
@@ -104,7 +103,7 @@ transcripts within each gene. It's a comma delimited file
 (See the ```data/priority.txt``` for an example) containing both
 the feature type, transcript type prioritized by line order. Features
 that are discovered to be overlapped but are not in this list will be
-randomly appended to the end as last priority.
+randomly appended to the end after all explicitly prioritized features.
 
 ```--gene-priority-file``` determines the priority when choosing which gene
 to report. The format is identical to transcript-priority-file.
