@@ -1,0 +1,19 @@
+input:
+  class: File
+  path: /home/bay001/projects/codebase/annotator/annotator/test/datasets_for_comparison/626.01v02.IDR.out.0102merged.bed
+
+output: 626.01v02.IDR.out.0102merged.bed.annotated.bed
+
+gtfdb:
+  class: File
+  path: /projects/ps-yeolab/genomes/hg19/gencode_v19/gencode.v19.annotation.gtf.db
+
+transcriptPriorityFile:
+  class: File
+  path: /home/bay001/projects/codebase/annotator/annotator/data/hg19.gencode19.priority.txt
+
+genePriorityFile:
+  class: File
+  path: /home/bay001/projects/codebase/annotator/annotator/data/hg19.gencode19.priority.txt
+
+species: hg19
