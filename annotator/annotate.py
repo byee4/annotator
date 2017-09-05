@@ -118,7 +118,7 @@ def main():
         default=False
     )
     parser.add_argument(
-        "--append_chr",
+        "--append-chr",
         dest="append_chr",
         required=False,
         action='store_true',
@@ -156,7 +156,7 @@ def main():
     unstranded = args.unstranded
     species = args.species
     append_chr = args.append_chr
-    cores = 1  # TODO: implement later
+    cores = 1  # TODO: implement later - unnecessary now
     fuzzy = 0  # TODO: implement later - unnecessary now
 
     ### Flipping this terminology to make it easier to understand

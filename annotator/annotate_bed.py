@@ -27,7 +27,6 @@ import sys
 import csv
 import multiprocessing
 import concurrent.futures
-from itertools import chain
 
 import cProfile
 
@@ -35,6 +34,7 @@ HASH_VAL = 1000000
 MAXVAL = 1000000000
 MINVAL = 0
 FEATURES_DICT = {}
+
 
 def do_cprofile(func):
     def profiled_func(*args, **kwargs):
@@ -48,7 +48,9 @@ def do_cprofile(func):
             profile.print_stats()
     return profiled_func
 
-def create_definitions(db_file, chroms=[], species='hg19', append_chr=False, fuzzy=0):
+
+def create_definitions(db_file, chroms=[], species='hg19',
+                       append_chr=False, fuzzy=0):
     """
     This method creates definitions and populates dictionaries to be used
     for annotation. Previously initialized in Annotator().
@@ -61,56 +63,59 @@ def create_definitions(db_file, chroms=[], species='hg19', append_chr=False, fuz
     :return:
     """
 
-    cds_key, utr3_key, utr5_key, utr_key, \
-    gene_name_key, transcript_id_key, type_key = get_keys(species)
+    keys = get_keys(species)
 
     db = gffutils.FeatureDB(db_file)
     featuretypes = [x.lower() for x in list(db.featuretypes())]
 
-    progress = trange(5, desc='Initializing/creating defs')
+    progress = trange(4, desc='Initializing/creating defs')
     progress.set_description("Building gene ids -> gene names dictionary")
 
-    geneid_to_name_dict = gene_id_to_name(db, gene_name_key)
     progress.update(1)
     if len(chroms) != 0:  # if use specific chromosomes, otherwise hash all
         chromosomes = set(chroms)
     else:
         chromosomes = chromosome_set(db)
 
-    exons_dict = {}
-    transcripts_dict = {}
-    cds_dict = {}
+    exons_dict = {}  # holds all of the transcript_id:exon start/stop
+    transcripts_dict = {}  # holds all of the transcript_id:start/stop
+    cds_dict = {}  # holds all of the transcript_id:cds start/stop
 
-    ### If 'exon' features exist in db, catalog it.
+    # If 'exon' features exist in db, catalog it.
     if 'exon' in featuretypes:
         progress.set_description("Adding all exon boundaries")
-        exons_dict = get_all_exons_dict(db, transcript_id_key)
+        exons_dict = get_all_exons_dict(db, keys['transcript_id'])
     progress.update(1)
-    ### If 'transcript' features exist in db, catalog it.
+    # If 'transcript' features exist in db, catalog it.
     if 'transcript' in featuretypes:
         progress.set_description("Adding all transcript boundaries")
-        transcripts_dict = get_all_transcripts_dict(db, transcript_id_key)
+        transcripts_dict = get_all_transcripts_dict(db, keys['transcript_id'])
     progress.update(1)
-    ### If 'cds' features exist in db, catalog it.
+    # If 'cds' features exist in db, catalog it.
     if 'cds' in featuretypes:
         progress.set_description("Adding all CDS boundaries")
-        cds_dict = get_all_cds_dict(db, cds_key)
+        cds_dict = get_all_cds_dict(db, keys['cds'])
     progress.update(1)
     progress.set_description("Adding all features in DB to dictionary")
     features_dict, num_features = hash_features(
         db, chromosomes, append_chr, fuzzy,
         exons_dict, transcripts_dict,
-        transcript_id_key, featuretypes
+        keys['transcript_id'], featuretypes
     )
-    progress.update(1)
-    return geneid_to_name_dict, exons_dict, transcripts_dict, cds_dict, features_dict, \
-           cds_key, utr3_key, utr5_key, utr_key, gene_name_key, transcript_id_key, type_key
+    # return exons_dict, transcripts_dict, cds_dict, \
+    #        features_dict, cds_key, utr3_key, \
+    #        utr5_key, utr_key, gene_name_key, \
+    #        transcript_id_key, type_key
+    return exons_dict, transcripts_dict, cds_dict, features_dict, keys
+
 
 def get_keys(species):
     """
-    Describes the language for each kind of gtf file (usually different between sources).
+    Describes the language for each kind of gtf file 
+    (usually different between sources).
 
-    :param species:
+    :param species: string
+        either one of: 'hg19','mm10','ce11','mm9','hg38'
     :return:
     """
     if species == 'ce11':
@@ -118,9 +123,11 @@ def get_keys(species):
         utr3_key = 'three_prime_UTR'
         utr5_key = 'five_prime_UTR'
         utr_key = None
-        gene_name_key = 'gene_id'
+        gene_name_key = 'gene_name'
         transcript_id_key = 'transcript_id'
         type_key = 'transcript_biotype'
+        exon_key = 'exon'
+        gene_id_key = 'gene_id'
     else:
         cds_key = 'CDS'
         utr3_key = None  #
@@ -129,8 +136,22 @@ def get_keys(species):
         gene_name_key = 'gene_name'
         transcript_id_key = 'transcript_id'
         type_key = 'transcript_type'
+        exon_key = 'exon'
+        gene_id_key = 'gene_id'
 
-    return cds_key, utr3_key, utr5_key, utr_key, gene_name_key, transcript_id_key, type_key
+    keys = {
+        'cds': cds_key,
+        'utr3': utr3_key,
+        'utr5': utr5_key,
+        'utr': utr_key,
+        'gene_name': gene_name_key,
+        'transcript_id': transcript_id_key,
+        'transcript_type': type_key,
+        'exon': exon_key,
+        'gene_id': gene_id_key
+    }
+    return keys
+
 
 def chromosome_set(db):
     """
@@ -142,13 +163,19 @@ def chromosome_set(db):
     all_chromosomes = [r['seqid'] for r in ret]
     return set(all_chromosomes)
 
+
 def gene_id_to_name(db, gene_name_key):
     """
     Returns a dictionary containing a gene_id:name translation
     Note: may be different if the 'gene_id' or 'gene_name'
     keys are not in the source GTF file
     (taken from gscripts.region_helpers)
-
+    
+    :param db: gffutils.FeatureDB
+        gffutils-created feature database (from 
+        gffutils.create_db())
+    :param gene_name_key: string
+        Typically gene_name
     :return gene_name_dict : dict
         dict of {gene_id : gene_name}
     """
@@ -168,7 +195,10 @@ def gene_id_to_name(db, gene_name_key):
             sys.exit(1)
     return gene_name_dict
 
-def hash_features(db, chromosomes, append_chr, fuzzy, exons_dict, transcripts_dict, transcript_id_key, featuretypes):
+
+def hash_features(db, chromosomes, append_chr, fuzzy,
+                  exons_dict, transcripts_dict,
+                  transcript_id_key, featuretypes):
     """
     hashes features by position.
     :return features_dict : collections.defaultdict()
@@ -190,24 +220,29 @@ def hash_features(db, chromosomes, append_chr, fuzzy, exons_dict, transcripts_di
         progress.set_description("Adding {}...".format(chrom))
 
         for element in db.region(seqid=chrom):
-            introns = []
 
-            if element.featuretype == 'gene':
-                if element.strand == '+':
-                    element.start = element.start - fuzzy
-                elif element.strand == '-':
-                    element.end = element.end + fuzzy
-            if element.featuretype == 'gene':
-                if element.strand == '+':
-                    element.end = element.end + fuzzy
-                elif element.strand == '-':
-                    element.start = element.start - fuzzy
-            if element.featuretype == 'transcript' and 'intron' not in featuretypes: # if we see at least one intron, we assume introns are annotated!
+            # TODO: implement 'fuzzy gene matching' feature
+            # if element.featuretype == 'gene':
+            #     if element.strand == '+':
+            #         element.start = element.start - fuzzy
+            #     elif element.strand == '-':
+            #         element.end = element.end + fuzzy
+            # if element.featuretype == 'gene':
+            #     if element.strand == '+':
+            #         element.end = element.end + fuzzy
+            #     elif element.strand == '-':
+            #         element.start = element.start - fuzzy
+
+            introns = []
+            # if we see at least one intron, we assume introns are annotated!
+            if element.featuretype == 'transcript' and \
+                            'intron' not in featuretypes:
                 for transcript_id in element.attributes[transcript_id_key]:
                     exons = exons_dict[transcript_id]
                     transcript = transcripts_dict[transcript_id]
                     introns = find_introns(transcript, exons)
 
+            # Create multi-key hash and store elements
             start = int(element.start / HASH_VAL)
             end = int(element.end / HASH_VAL)
 
@@ -217,6 +252,7 @@ def hash_features(db, chromosomes, append_chr, fuzzy, exons_dict, transcripts_di
                 append(element)
 
                 for intron in introns:
+                    # TODO: figure out a way to remove deepcopy requirement
                     intron_feature = copy.deepcopy(element)
                     intron_feature.start = intron['start']
                     intron_feature.end = intron['end']
@@ -227,8 +263,8 @@ def hash_features(db, chromosomes, append_chr, fuzzy, exons_dict, transcripts_di
             num_features += 1
         progress.update(1)
 
-    print("NUM FEATURES: {}".format(num_features))
     return features_dict, num_features
+
 
 def get_all_exons_dict(db, transcript_id_key):
     """
@@ -240,8 +276,11 @@ def get_all_exons_dict(db, transcript_id_key):
         ]
     }.
 
-    :return:
+    :param db: gffutils.FeatureDB
+    :param transcript_id_key: string
+    :return: 
     """
+
     exons_dict = defaultdict(list)
     for exon_feature in db.features_of_type('exon'):
         for transcript_id in exon_feature.attributes[transcript_id_key]:
@@ -253,11 +292,14 @@ def get_all_exons_dict(db, transcript_id_key):
             )
     return exons_dict
 
+
 def get_all_transcripts_dict(db, transcript_id_key):
     """
     Returns dictionary of transcript_id:{'start':START, 'end':END}.
 
-    :return transcripts_dict: defaultdict(dict)
+    :param db: gffutils.FeatureDB
+    :param transcript_id_key: string
+    :return: transcripts_dict: defaultdict(dict)
         hash of transcripts and their start/end coordinates
     """
     transcripts_dict = defaultdict(dict)
@@ -301,11 +343,12 @@ def find_introns(transcript, exons):
         pos_append(exon['end'] + 1)
     positions = sorted(positions)
 
-    if positions[0] < transcript[
-        'start']:  # there is no intron at the start of the feature
+    # feature doesn't start with an intron
+    if positions[0] < transcript['start']:
         positions.pop(0)
     else:
         positions.insert(transcript['start'])
+    # feature doesn't end at an intron
     if positions[-1] > transcript['end']:
         positions.pop(-1)
     else:
@@ -313,6 +356,7 @@ def find_introns(transcript, exons):
     for i in range(0, len(positions) - 1, 2):
         intron_append({'start': positions[i], 'end': positions[i + 1]})
     return introns
+
 
 def get_all_cds_dict(db, cds_key):
     """
@@ -327,20 +371,25 @@ def get_all_cds_dict(db, cds_key):
     for cds_feature in db.features_of_type(cds_key):
         for transcript_id in cds_feature.attributes['transcript_id']:
             # if cds_feature.start <= cds_dict[transcript_id]['low']:
-            if cds_feature.start <= cds_dict[transcript_id].get("low",MAXVAL):
+            if cds_feature.start <= cds_dict[transcript_id].get("low", MAXVAL):
                 cds_dict[transcript_id]['low'] = cds_feature.start
             # if cds_feature.end >= cds_dict[transcript_id]['hi']:
-            if cds_feature.end >= cds_dict[transcript_id].get("hi",MINVAL):
+            if cds_feature.end >= cds_dict[transcript_id].get("hi", MINVAL):
                 cds_dict[transcript_id]['hi'] = cds_feature.end
     return cds_dict
 
+
 def classify_utr(utr_feature, cds_dict):
     """
-    Given a list of features, return a dictionary of
-    gene_id : {start: cds_start, end: cds_end} sites
+    Given a feature classified as a UTR, return whether or not it is
+    upstream (5') or downstream (3') based on CDS positions
 
-    :param features : list[gffutils.Feature]
-    :return cds_ends : dict
+    :param utr_feature: gffutils.Feature
+        feature already classified as UTR (within a coding transcript but
+        outside of CDS regions).
+    :param cds_dict: dict
+        dictionary containing cds positions for every transcript
+    :return:
     """
     three_prime_utr = False
     five_prime_utr = False
@@ -366,6 +415,7 @@ def classify_utr(utr_feature, cds_dict):
     else:
         return 'unclassified_utr'
 
+
 def get_all_overlapping_features_from_query_stranded(
         chrom, qstart, qend, strand, features_dict):
     """
@@ -377,6 +427,8 @@ def get_all_overlapping_features_from_query_stranded(
     :param qstart : int
     :param qend : int
     :param strand : string
+    :param features_dict : dict
+        dictionary of positions for all features
     :return features : list
         list of gffutils.Feature objects.
     """
@@ -387,38 +439,47 @@ def get_all_overlapping_features_from_query_stranded(
     qstart = qstart + 1  # change 0-based bed to 1-based gff
     for i in range(start_key, end_key + 1):
         for feature in features_dict[chrom, i, strand]:
-            if qstart <= feature.start and qend >= feature.end:  # query completely contains feature
+            # query completely contains feature
+            if qstart <= feature.start and qend >= feature.end:
                 feature.attributes['overlap'] = 'query_contains_feature'
                 append(feature)
-            elif qstart >= feature.start and qend <= feature.end:  # feature completely contains query
+            # feature completely contains query
+            elif qstart >= feature.start and qend <= feature.end:
                 feature.attributes['overlap'] = 'feature_contains_query'
                 append(feature)
-            elif qstart <= feature.start and qend > feature.start:  # feature partially overlaps (qstart < fstart < qend)
+            # feature partially overlaps (qstart < fstart < qend)
+            elif qstart <= feature.start and qend > feature.start:
                 feature.attributes[
                     'overlap'] = 'partial_by_{}_bases'.format(
                     qend - (feature.start - 1))
                 append(feature)
-            elif qstart <= feature.end and qend >= feature.end:  # feature partially overlaps (qstart < fend < qend)
+            # feature partially overlaps (qstart < fend < qend)
+            elif qstart <= feature.end and qend >= feature.end:
                 feature.attributes[
                     'overlap'] = 'partial_by_{}_bases'.format(
                     feature.end - qstart)
                 append(feature)
-    # for f in features:
-    #     f.start = f.start - 1 # fix to make gff-coordinates 0-based
     return features
+
 
 def get_all_overlapping_features_from_query_unstranded(
         chrom, qstart, qend, strand, features_dict):
     """
     Returns overlapping features from a query.
 
-    :param chrom:
-    :param qstart:
-    :param qend:
-    :param strand:
+    :param chrom: string
+        query chromosome/source
+    :param qstart: int
+        query start
+    :param qend: int
+        query end
+    :param strand: string
+        query strand
+    :param features_dict: dict
+        dictionary of positions for all features
     :return:
     """
-    if strand is None:  # If no strand given, return all features from both strands
+    if strand is None:  # If no strand given, return features from both strands
         positive_features = get_all_overlapping_features_from_query_stranded(
             chrom, qstart, qend, '+', features_dict
         )
@@ -426,7 +487,10 @@ def get_all_overlapping_features_from_query_unstranded(
             chrom, qstart, qend, '-', features_dict
         )
         return positive_features + negative_features
-    else:  # return features on the same strand, only return features on opposite strand if it can't find anything otherwise.
+    # return features on the same strand, only return features on
+    # opposite strand if it can't find anything otherwise.
+    else:
+
         priority_features = get_all_overlapping_features_from_query_stranded(
             chrom, qstart, qend, strand, features_dict
         )
@@ -446,19 +510,21 @@ def get_all_overlapping_features_from_query_unstranded(
         else:
             return priority_features
 
+
 def get_all_overlapping_features_from_query(
         chrom, qstart, qend, strand, features_dict, stranded=True):
     """
     Returns overlapping features from a query.
-    If stranded is True, then return only the features that overlap on the same strand.
-    Otherwise, features returned need not to be with respect to strand (although if
-    strand is given, it will return same-stranded features first before attempting to
-    find those on the opposite strand).
+    If stranded is True, then return only the features that overlap on
+    the same strand. Otherwise, features returned need not to be with respect
+    to strand (although if strand is given, it will return same-stranded
+    features first before attempting to find those on the opposite strand).
 
     :param chrom:
     :param qstart:
     :param qend:
     :param strand:
+    :param features_dict:
     :param stranded:
     :return:
     """
@@ -469,7 +535,7 @@ def get_all_overlapping_features_from_query(
     else:
         return get_all_overlapping_features_from_query_unstranded(
             chrom, qstart, qend, strand, features_dict
-            # TODO: implement the priority better. For now, this will return all features for both strands
+            # TODO: implement better. For now, returns both strands
         )
 
 def parse_annotation_string(features_string):
@@ -482,17 +548,20 @@ def parse_annotation_string(features_string):
     features = features_string.split('|')
     return features
 
+
 def is_protein_coding(transcript_type):
     """
     if defined protein coding, return True else False
 
-    :param transcript_type:
-    :return:
+    :param transcript_type: string
+    :return is_protein_coding: boolean
+
     """
     if transcript_type == 'protein_coding':
         return True
 
     return False
+
 
 def return_highest_priority_feature(formatted_features, priority):
     """
@@ -525,8 +594,8 @@ def return_highest_priority_feature(formatted_features, priority):
     )  # turn into ordered dict, is that ok?
     # print("combined dict: {}".format(combined_dict))
     try:
-        # print("PRIORITY: ", priority)
-        for key, _ in iteritems(combined_dict): # append nonexisting regions to the end of the priority list
+        # append nonexisting regions to the end of the priority list
+        for key, _ in iteritems(combined_dict):
             if list(key) not in priority:
                 priority.append(list(key))
         # print("PRIORITY: ",priority)
@@ -541,6 +610,7 @@ def return_highest_priority_feature(formatted_features, priority):
         print(combined_dict)
     return combined_dict[0]
 
+
 def prioritize_transcript(unique_transcript_features, transcript_priority):
     """
     Given a dictionary of features, return a dictionary containing
@@ -554,15 +624,12 @@ def prioritize_transcript(unique_transcript_features, transcript_priority):
         list of tuples (featuretype, transcripttype)
     :return unique_genes: defaultdict[list]
     """
-    unique_transcripts = defaultdict(list)
     unique_genes = defaultdict(list)
-
 
     if len(unique_transcript_features.keys()) == 0:
         return 'intergenic'
 
-    ### PRIORITIZE TRANSCRIPT ###
-    for transcript in unique_transcript_features.keys():  # For each unique transcript
+    for transcript in unique_transcript_features.keys():
         top_transcript = return_highest_priority_feature(
             unique_transcript_features[transcript],
             transcript_priority
@@ -575,6 +642,7 @@ def prioritize_transcript(unique_transcript_features, transcript_priority):
         for gene in gene_list:
             unique_genes[gene].append(top_transcript)
     return unique_genes
+
 
 def prioritize_genes(unique_genes, gene_priority):
     final_transcripts = []
@@ -599,6 +667,7 @@ def prioritize_genes(unique_genes, gene_priority):
         return ff
     else:
         return sorted(final_genes)
+
 
 def prioritize_transcript_then_gene(
         formatted_features, transcript_priority, gene_priority, parent='gene'):
@@ -630,9 +699,12 @@ def prioritize_transcript_then_gene(
                 feature_string
             )
 
-    unique_genes = prioritize_transcript(unique_transcripts, transcript_priority)
+    unique_genes = prioritize_transcript(
+        unique_transcripts, transcript_priority
+    )
     top_gene = prioritize_genes(unique_genes, gene_priority)
     return top_gene
+
 
 def split_string(priority_string, delimiter=':'):
     """
@@ -643,7 +715,7 @@ def split_string(priority_string, delimiter=':'):
     :param priority_string: string
         colon-delimited string containing region geneid and
         genename in fields 4-6 (0-based).
-
+    :param delimiter: change
     :return region, gene_id, gene_name:
     """
     if priority_string == 'intergenic':
@@ -652,15 +724,27 @@ def split_string(priority_string, delimiter=':'):
         fields = priority_string.split(delimiter)
         return fields[4], fields[5], fields[6]
 
+
 def annotate(
         chrom, start, end, name, score, strand,
         stranded, transcript_priority, gene_priority,
-        features_dict, cds_dict, transcript_id_key, type_key):
+        features_dict, cds_dict, keys):
 
     """
-    Given an interval, annotates using the priority
+    Given position parameters, return the annotation string.
 
-    :param interval:
+    :param chrom:
+    :param start:
+    :param end:
+    :param name:
+    :param score:
+    :param strand:
+    :param stranded:
+    :param transcript_priority:
+    :param gene_priority:
+    :param features_dict:
+    :param cds_dict:
+    :param keys:
     :return:
     """
     append_count = 0
@@ -669,20 +753,21 @@ def annotate(
         chrom, start, end, strand, features_dict, stranded
     )
 
-    #   If we find fno overlapping features, return 'intergenic' (no feature seen)
-    if len(overlapping_features) == 0: # gene, name, region, type, to_append
+    #   If we find no overlapping features, return 'intergenic'
+    if len(overlapping_features) == 0:
         return chrom, start, end, name, score, strand, \
-               'intergenic' , 'intergenic', \
+               'intergenic', 'intergenic', \
                'intergenic', 'intergenic'
     to_append = ''  # full list of genes overlapping features
     transcript = defaultdict(list)
     for feature in overlapping_features:  # for each overlapping feature
-        #   for M10 annotations, I see gene featuretypes without transcript_ids.
-        #   That's fine. We can re-construct genes from the transcript features, so ignore
-        #   anything that doesn't have a transcript_id in it.
-        if transcript_id_key in feature.attributes.keys():
+        #   for M10 annotations, I see gene featuretypes without
+        #   transcript_ids. That's fine. We can re-construct genes from the
+        #   transcript features, so ignore anything that doesn't have a
+        #   transcript_id in it.
+        if keys['transcript_id'] in feature.attributes.keys():
             for transcript_id in feature.attributes[
-                transcript_id_key
+                keys['transcript_id']
             ]:  # multiple genes can be associated with one feature
                 transcript[transcript_id].append(
                     feature)  # append features to their respective genes
@@ -690,7 +775,8 @@ def annotate(
     for transcript, features in iteritems(transcript):
         for feature in features:
             append_count += 1
-            if feature.featuretype == 'UTR':  # if we only have UTR, specify what kind of UTR (3' or 5').
+            # if we only have UTR, specify what kind of UTR (3' or 5').
+            if feature.featuretype == keys['utr']:
                 feature.featuretype = classify_utr(feature, cds_dict)
             to_append += "{}:{}:{}:{}:{}:".format(
                 transcript,
@@ -699,24 +785,24 @@ def annotate(
                 feature.strand,
                 feature.featuretype,
             )
-            if 'gene_id' in feature.attributes.keys():
-                for t in feature.attributes['gene_id']:
+            if keys['gene_id'] in feature.attributes.keys():
+                for t in feature.attributes[keys['gene_id']]:
                     to_append += '{},'.format(t)
                 to_append = to_append[:-1] + ':'
             else:
                 to_append = to_append + '-:'
-            if 'gene_name' in feature.attributes.keys():
-                for t in feature.attributes['gene_name']:
+            if keys['gene_name'] in feature.attributes.keys():
+                for t in feature.attributes[keys['gene_name']]:
                     to_append += '{},'.format(t)
                 to_append = to_append[:-1] + ':'
-            elif 'transcript_id' in feature.attributes.keys():
-                for t in feature.attributes['transcript_id']:
+            elif keys['transcript_id'] in feature.attributes.keys():
+                for t in feature.attributes[keys['transcript_id']]:
                     to_append += '{},'.format(t)
                 to_append = to_append[:-1] + ':'
             else:
                 to_append = to_append + '-:'
-            if type_key in feature.attributes.keys():
-                for t in feature.attributes[type_key]:
+            if keys['transcript_type'] in feature.attributes.keys():
+                for t in feature.attributes[keys['transcript_type']]:
                     to_append += '{},'.format(t)
                 to_append = to_append[:-1] + ':'
             else:
@@ -730,7 +816,7 @@ def annotate(
 
     to_append = to_append[:-1]
 
-    if append_count == 1:  # if just one region, save computation by returning it.
+    if append_count == 1:  # if just one region, just return it.
         region, gene, rname = split_string(to_append)
     else:
         priority = prioritize_transcript_then_gene(
@@ -740,22 +826,27 @@ def annotate(
         )
         region, gene, rname = split_string(priority[0])
         for highest_priority_gene in priority[1:]:
-            current_region, current_gene, current_rname = split_string(highest_priority_gene)
-            assert region == current_region  # there should really just be one highest priority region.
-            ### if the highest priority region contains multiple genes, return all
+            current_region, current_gene, current_rname = split_string(
+                highest_priority_gene
+            )
+            # there should really just be one highest priority region.
+            assert region == current_region
+            # if the priority region contains multiple genes, return all
             if gene != current_gene:
                 gene = gene + ',' + current_gene
             if rname != current_rname:
                 rname = rname + ',' + current_rname
-    # print(feature.start, feature.end, feature.strand, to_append)
-    return chrom, start, end, name, score, strand, gene , rname, region, to_append
+    return chrom, start, end, name, score, strand, \
+           gene , rname, region, to_append
+
 
 def split_bed_interval(bed_string):
     """
     Takes a bed file as a line (tab delimited) and returns 6 fields
     correctly typed.
-    :param bed_string:
-    :return:
+    :param bed_string: string
+    :return chrom, start, end, name, score, strand: string
+        bed interval
     """
     bed = bed_string.rstrip().split('\t')
     return bed[0], int(bed[1]), int(bed[2]), bed[3], bed[4], bed[5]
@@ -801,18 +892,13 @@ def annotate_bed_multi_core(cores, lines, stranded, transcript_priority,
         output file to write to disk.
     :return:
     """
-    ### create shared-in-memory objects
+    # create shared-in-memory objects
     manager = multiprocessing.Manager()
     shared_cds_dict = manager.dict(cds_dict)
     shared_features_dict = manager.dict(features_dict)
 
-    ### create pool
+    # create pool
     print("setting up pool to run on {} cores".format(cores))
-    po = multiprocessing.Pool(cores)
-    fs = []
-    # with open(out_file, 'w') as o:
-    o = open(out_file, 'w')
-    # for interval in bed_tool:  # for each line in bed file
 
     fs = []
     o = open(out_file, 'w')
@@ -823,7 +909,8 @@ def annotate_bed_multi_core(cores, lines, stranded, transcript_priority,
             fs.append(executor.submit(
                 annotate, chrom, start, end, name, score, strand,
                 stranded, transcript_priority, gene_priority,
-                shared_features_dict, shared_cds_dict, transcript_id_key, type_key
+                shared_features_dict, shared_cds_dict, transcript_id_key,
+                type_key
             ))
             progress.update(1)
     progress = trange(len(lines), desc='writing to disk', leave=False)
@@ -834,14 +921,14 @@ def annotate_bed_multi_core(cores, lines, stranded, transcript_priority,
 
 
 def annotate_bed_single_core(line, stranded, transcript_priority,
-                            gene_priority, cds_dict, features_dict,
-                            transcript_id_key, type_key, progress):
+                             gene_priority, cds_dict, features_dict,
+                             keys, progress):
     """
     Annotates a bed6-formatted line given dictionaries containing
     cds and genic positions, and priority lists.
 
     :param line: string
-
+        a single BED6-style line
     :param stranded: boolean
         if True, search for features on the same strand only. If
         False, search for same-stranded features, but also search
@@ -862,26 +949,22 @@ def annotate_bed_single_core(line, stranded, transcript_priority,
     :param features_dict: dict
         multilevel dictionary containing all features in all specified
         chromosomes.
-    :param transcript_id_key: string
-        identifier in GTF file that specifies transcript_id
-        (ie. transcript_id)
-    :param type_key: string
-        identifier in GTF file that specifies the biotype
-        (ie. transcript_type)
-
+    :param keys: dict
+        dictionary of keys that specify the GTF language.
     :param progress: tqdm.tqdm()
         tqdm progress object
-    :return:
+    :return result: string
+        The resultant BED file, plus all the annotation columns
     """
     chrom, start, end, name, score, strand = split_bed_interval(line)
     result = annotate(
         chrom, start, end, name, score, strand,
         stranded, transcript_priority, gene_priority,
-        features_dict, cds_dict,
-        transcript_id_key, type_key
+        features_dict, cds_dict, keys
     )
     progress.update(1)
     return result
+
 
 def annotate_bed(db_file, bed_file, out_file, stranded, chroms,
              transcript_priority, gene_priority, species, append_chr, fuzzy,
@@ -906,10 +989,11 @@ def annotate_bed(db_file, bed_file, out_file, stranded, chroms,
         instead of chrI/chr1, so we need to let the database know that.
     :return:
     """
-    geneid_to_name_dict, exons_dict, transcripts_dict, \
-    cds_dict, features_dict, cds_key, utr3_key, utr5_key, utr_key,\
-    gene_name_key, transcript_id_key, type_key = create_definitions(
-        db_file, chroms=chroms, species=species, append_chr=append_chr, fuzzy=fuzzy
+
+    exons_dict, transcripts_dict, \
+    cds_dict, features_dict, keys = create_definitions(
+        db_file, chroms=chroms, species=species, append_chr=append_chr,
+        fuzzy=fuzzy
     )
 
     i = open(bed_file, 'r')
@@ -921,7 +1005,7 @@ def annotate_bed(db_file, bed_file, out_file, stranded, chroms,
             annotate_bed_single_core(  # TODO: implement multicore method
                 line, stranded, transcript_priority,
                 gene_priority, cds_dict, features_dict,
-                transcript_id_key, type_key, progress
+                keys, progress
             ) for line in lines]
         )
     i.close()
