@@ -693,6 +693,7 @@ def prioritize_transcript_then_gene(
     unique_transcripts = defaultdict(list)
 
     for feature_string in formatted_features:
+
         if feature_string.split(':')[4] != parent:
             transcript = feature_string.split(':')[0]
             unique_transcripts[transcript].append(
@@ -752,12 +753,6 @@ def annotate(
     overlapping_features = get_all_overlapping_features_from_query(
         chrom, start, end, strand, features_dict, stranded
     )
-
-    #   If we find no overlapping features, return 'intergenic'
-    if len(overlapping_features) == 0:
-        return chrom, start, end, name, score, strand, \
-               'intergenic', 'intergenic', \
-               'intergenic', 'intergenic'
     to_append = ''  # full list of genes overlapping features
     transcript = defaultdict(list)
     for feature in overlapping_features:  # for each overlapping feature
@@ -771,6 +766,12 @@ def annotate(
             ]:  # multiple genes can be associated with one feature
                 transcript[transcript_id].append(
                     feature)  # append features to their respective genes
+
+    #   If we find no overlapping features, return 'intergenic'
+    if len(transcript.keys()) == 0:
+        return chrom, start, end, name, score, strand, \
+               'intergenic', 'intergenic', \
+               'intergenic', 'intergenic'
 
     for transcript, features in iteritems(transcript):
         for feature in features:
@@ -815,7 +816,6 @@ def annotate(
                 to_append = to_append + '-:'
 
     to_append = to_append[:-1]
-
     if append_count == 1:  # if just one region, just return it.
         region, gene, rname = split_string(to_append)
     else:

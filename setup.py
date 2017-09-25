@@ -7,7 +7,7 @@ except ImportError:
 
 setup(
     name='annotator',
-    version='0.0.2',
+    version='0.0.5',
     url='',
     license='',
     author='brianyee',
