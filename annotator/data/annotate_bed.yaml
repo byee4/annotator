@@ -1,3 +1,5 @@
+#!/usr/bin/env annotate_bed.cwl
+
 input:
   class: File
   path: /home/bay001/projects/codebase/annotator/annotator/test/datasets_for_comparison/626.01v02.IDR.out.0102merged.bed

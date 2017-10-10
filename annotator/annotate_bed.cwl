@@ -1,10 +1,10 @@
-#!/usr/bin/env python
+#!/usr/bin/env cwltool
 
 cwlVersion: v1.0
 
 class: CommandLineTool
 
-baseCommand: [annotate-bed]
+baseCommand: [annotate.py]
 
 inputs:
 
