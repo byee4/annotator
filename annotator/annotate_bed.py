@@ -240,6 +240,7 @@ def hash_features(db, chromosomes, append_chr, fuzzy,
                 for transcript_id in element.attributes[transcript_id_key]:
                     exons = exons_dict[transcript_id]
                     transcript = transcripts_dict[transcript_id]
+                    # Find introns
                     introns = find_introns(transcript, exons)
 
             # Create multi-key hash and store elements
@@ -333,8 +334,9 @@ def find_introns(transcript, exons):
             ...
         ]
     """
-    positions = []
+    positions = [] # list of
     introns = []
+
     pos_append = positions.append
     intron_append = introns.append
 
@@ -357,6 +359,67 @@ def find_introns(transcript, exons):
         intron_append({'start': positions[i], 'end': positions[i + 1]})
     return introns
 
+def get_proxdist_from_intron(start, end, max_prox_len=500):
+    """
+    Given start and end coordinates, return a dict
+    of {'prox':[
+         {'start':START,'end':END}, {'start':START,'end':END}, etc.
+        ],
+        'dist':[
+        ]
+       }
+    :param intron:
+    :return:
+    """
+    if end - start <= max_prox_len:
+        return {"prox":{'start':start,'end':end}}
+    else:
+        pass
+
+def split_prox_dist(interval):
+    """
+    given an interval, return a list of prox and dist intervals
+    """
+    d = 1000
+    if interval.end - interval.start <= d:
+        prox = [
+            interval.chrom,
+            '{}'.format(interval.start),
+            '{}'.format(interval.end),
+            'prox_' + interval.name,
+            '{}'.format(interval.score),
+            interval.strand
+        ]
+        prox = pybedtools.create_interval_from_list(prox)
+        return {'prox': [prox]}
+    else:
+        prox_left = [
+            interval.chrom,
+            '{}'.format(interval.start),
+            '{}'.format(interval.start + 500),
+            'prox_' + interval.name,
+            '{}'.format(interval.score),
+            interval.strand
+        ]
+        prox_left = pybedtools.create_interval_from_list(prox_left)
+        prox_right = [
+            interval.chrom,
+            '{}'.format(interval.end - 500),
+            '{}'.format(interval.end),
+            'prox_' + interval.name,
+            '{}'.format(interval.score),
+            interval.strand
+        ]
+        prox_right = pybedtools.create_interval_from_list(prox_right)
+        dist = [
+            interval.chrom,
+            '{}'.format(interval.start + 500),
+            '{}'.format(interval.end - 500),
+            'dist_' + interval.name,
+            '{}'.format(interval.score),
+            interval.strand
+        ]
+        return {'prox': [prox_left, prox_right], 'dist': [dist]}
 
 def get_all_cds_dict(db, cds_key):
     """
