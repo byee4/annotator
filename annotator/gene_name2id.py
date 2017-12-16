@@ -31,7 +31,7 @@ def get_id_from_namerow(row, name2id, name_col):
     try:
         return '|'.join(name2id[str(row[name_col])])
     except KeyError:
-        print('Cant find {} in the database!'.format(row[name_col]))
+        print('Cant find {} in the database!'.format(str(row[name_col])))
         return ''
 
 

@@ -27,7 +27,7 @@ import sys
 import csv
 import multiprocessing
 import concurrent.futures
-
+import pybedtools
 import cProfile
 
 HASH_VAL = 1000000
@@ -250,17 +250,31 @@ def hash_features(db, chromosomes, append_chr, fuzzy,
             for i in range(start, end + 1):
                 element.chrom = fixed_chrom
                 append = features_dict[fixed_chrom, i, element.strand].append
+
+                # append elements to features dictionary
                 append(element)
 
+                # append inferred introns to features dictionary
                 for intron in introns:
-                    # TODO: figure out a way to remove deepcopy requirement
-                    intron_feature = copy.deepcopy(element)
-                    intron_feature.start = intron['start']
-                    intron_feature.end = intron['end']
-                    intron_feature.featuretype = 'intron'
-                    append(
-                        intron_feature
+                    #  TODO: figure out a way to remove deepcopy requirement
+                    intron_interval = pybedtools.create_interval_from_list(
+                        [element.chrom, str(int(intron['start'])-1), intron['end'],  # turn 1 based into 0 based
+                        'intron', str(element.score), element.strand]
                     )
+                    proxdist_dict = get_proxdist_from_intron(intron_interval)
+                    for prox in proxdist_dict['prox']:
+                        proxintron_feature = copy.deepcopy(element)
+                        proxintron_feature.start = prox.start + 1
+                        proxintron_feature.end = prox.end
+                        proxintron_feature.featuretype = prox.name
+                        append(proxintron_feature)
+                    for dist in proxdist_dict['dist']:
+                        distintron_feature = copy.deepcopy(element)
+                        distintron_feature.start = dist.start + 1
+                        distintron_feature.end = dist.end
+                        distintron_feature.featuretype = dist.name
+                        append(distintron_feature)
+
             num_features += 1
         progress.update(1)
 
@@ -359,66 +373,67 @@ def find_introns(transcript, exons):
         intron_append({'start': positions[i], 'end': positions[i + 1]})
     return introns
 
-def get_proxdist_from_intron(start, end, max_prox_len=500):
-    """
-    Given start and end coordinates, return a dict
-    of {'prox':[
-         {'start':START,'end':END}, {'start':START,'end':END}, etc.
-        ],
-        'dist':[
-        ]
-       }
-    :param intron:
-    :return:
-    """
-    if end - start <= max_prox_len:
-        return {"prox":{'start':start,'end':end}}
-    else:
-        pass
 
-def split_prox_dist(interval):
+def get_proxdist_from_intron(interval, distance=500):
     """
-    given an interval, return a list of prox and dist intervals
+    Given an interval, return a list of prox and dist intervals.
+    Note: This uses pybedtools, which is 0 based. So unlike 1-based
+    gffutils which is used in most of these functions, it returns
+    zero-based exclusive bedtools intervals!
+
+    :param interval: pybedtools.Interval
+        intron interval
+    :param distance: int
+        maximum distance away from an exon that an intron position can be
+        before calling it a distal intron region.
+    :return proxdist: dict(list)
+        dictionary containing 'prox' and 'dist' as keys, list of
+        each proximal and distal intron region as values.
     """
-    d = 1000
+
+    d = distance * 2 # total distance
+
+    # if the region is less than 2x the distance, any point on
+    # that region will be equal or less than an exon.
     if interval.end - interval.start <= d:
         prox = [
             interval.chrom,
             '{}'.format(interval.start),
             '{}'.format(interval.end),
-            'prox_' + interval.name,
+            'proxintron{}'.format(distance),
             '{}'.format(interval.score),
             interval.strand
         ]
         prox = pybedtools.create_interval_from_list(prox)
-        return {'prox': [prox]}
+        return {'prox': [prox], 'dist': []}
     else:
         prox_left = [
             interval.chrom,
             '{}'.format(interval.start),
-            '{}'.format(interval.start + 500),
-            'prox_' + interval.name,
+            '{}'.format(interval.start + distance),
+            'proxintron{}'.format(distance),
             '{}'.format(interval.score),
             interval.strand
         ]
         prox_left = pybedtools.create_interval_from_list(prox_left)
         prox_right = [
             interval.chrom,
-            '{}'.format(interval.end - 500),
+            '{}'.format(interval.end - distance),
             '{}'.format(interval.end),
-            'prox_' + interval.name,
+            'proxintron{}'.format(distance),
             '{}'.format(interval.score),
             interval.strand
         ]
         prox_right = pybedtools.create_interval_from_list(prox_right)
         dist = [
             interval.chrom,
-            '{}'.format(interval.start + 500),
-            '{}'.format(interval.end - 500),
-            'dist_' + interval.name,
+            '{}'.format(interval.start + distance),
+            '{}'.format(interval.end - distance),
+            'distintron{}'.format(distance),
             '{}'.format(interval.score),
             interval.strand
         ]
+        dist = pybedtools.create_interval_from_list(dist)
         return {'prox': [prox_left, prox_right], 'dist': [dist]}
 
 def get_all_cds_dict(db, cds_key):
@@ -625,6 +640,33 @@ def is_protein_coding(transcript_type):
 
     return False
 
+def classify_transcript_type(
+        transcript_type, distinct_nc_tx=None
+):
+    """
+    deprecates is_protein_coding().
+
+    :param transcript_type: string
+    :param distinct_nc_tx: list or None
+        We can pull out any distinct noncoding regions using this parameter.
+        For example, we can specify distinct_nc_tx = ['lincRNA', 'pseudogene'],
+        and this function will NOT bin these categories into the catchall
+        'non_coding' category.
+    :return transcript_type_class: string
+
+    """
+
+    # if the transcript type is protein coding, easy. return 'protein coding'.
+    if transcript_type == 'protein_coding':
+        return 'protein_coding'
+
+    # if we specify any non_coding type to pull out, returns the type here.
+    if distinct_nc_tx is not None:
+        for distinct_type in distinct_nc_tx:
+            if transcript_type == distinct_type:
+                return distinct_type
+    # if not either protein_coding or anything in distinct_nc_tx, return non_coding.
+    return 'non_coding'
 
 def return_highest_priority_feature(formatted_features, priority):
     """
@@ -644,13 +686,12 @@ def return_highest_priority_feature(formatted_features, priority):
         gene_name, transcript_type_list, overlap = feature_string.split(':')
         transcript_type_list = transcript_type_list.split(',')
         for transcript_type in transcript_type_list:
-            if is_protein_coding(
-                    transcript_type):  # simplify all the types at first
-                combined_dict['protein_coding', feature_type].append(
-                    feature_string)
-            else:
-                combined_dict['non_coding',  feature_type].append(
-                    feature_string)
+            combined_dict[
+                classify_transcript_type(transcript_type),
+                feature_type
+            ].append(
+                feature_string
+            )
     # return the highest one
     combined_dict = OrderedDict(
         combined_dict
@@ -697,10 +738,7 @@ def prioritize_transcript(unique_transcript_features, transcript_priority):
             unique_transcript_features[transcript],
             transcript_priority
         )[1][0]  # [0] contains the dictionary key
-        # unique_transcripts[transcript].append(
-        #     top_transcript
-        # )
-        # add gene key
+
         gene_list = top_transcript.split(':')[5].split(',')
         for gene in gene_list:
             unique_genes[gene].append(top_transcript)

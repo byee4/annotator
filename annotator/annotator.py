@@ -18,6 +18,7 @@ from future.utils import raise_with_traceback
 from future.utils import iteritems
 
 from argparse import ArgumentParser
+# from annotator import annotate_bed
 from annotator import annotate_bed
 import sys
 
@@ -29,10 +30,14 @@ GENE_PRIORITY = [
     ['protein_coding','5utr'],
     ['protein_coding','3utr'],
     ['protein_coding','unclassified_utr'],
-    ['protein_coding','intron'],
+    #['protein_coding','intron'],
+    ['protein_coding','proxintron500'],
+    ['protein_coding','distintron500'],
     ['protein_coding','Selenocysteine'],
     ['non_coding','exon'],
-    ['non_coding','intron'],
+    # ['non_coding','intron'],
+    ['non_coding', 'proxintron500'],
+    ['non_coding', 'distintron500'],
     ['non_coding','transcript'],
     ['non_coding','gene'],
     ['non_coding','Selenocysteine'],
@@ -46,10 +51,13 @@ TRANSCRIPT_PRIORITY = [
     ['protein_coding','5utr'],
     ['protein_coding','3utr'],
     ['protein_coding', 'unclassified_utr'],
-    ['protein_coding','intron'],
+    #['protein_coding','intron'],
+    ['protein_coding','proxintron500'],
+    ['protein_coding','distintron500'],
     ['protein_coding','Selenocysteine'],
     ['non_coding', 'exon'],
-    ['non_coding', 'intron'],
+    ['non_coding','proxintron500'],
+    ['non_coding','distintron500'],
     ['non_coding','transcript'],
     ['non_coding','gene'],
     ['non_coding','Selenocysteine'],

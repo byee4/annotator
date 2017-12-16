@@ -7,7 +7,7 @@ except ImportError:
 
 setup(
     name='annotator',
-    version='0.0.5',
+    version='0.0.6',
     url='',
     license='',
     author='brianyee',
@@ -19,7 +19,7 @@ setup(
     },
     entry_points = {
         'console_scripts': [
-            'annotate-bed = annotator.annotate:main',
+            'annotate-bed = annotator.annotator:main',
         ]
     }
 )

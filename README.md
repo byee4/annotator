@@ -43,6 +43,7 @@ annotate-bed \
 --input BED6_FILE \
 --output OUTPUT_FILE \
 --gtfdb gencode.v19.annotation.gtf.db \
+--species hg19
 ```
 
 ### Output file:
@@ -65,7 +66,7 @@ Plus annotation stuff (tabbed):
 - All overlapping annotations
 
 
-All overlapping annotations should follow this format:
+All overlapping annotations are ```|``` seperated, and should follow this format:
 
 ```transcript_id:region_start:region_stop:strand:region:gene_id:gene_name:transcript_type:overlap```
 
@@ -77,10 +78,12 @@ All overlapping annotations should follow this format:
 - protein_coding stop_codon
 - protein_coding 5utr
 - protein_coding 3utr
-- protein_coding intron
+- protein_coding proxintron500
+- protein_coding distintron500
 - protein_coding Selenocysteine
 - non_coding exon
-- non_coding intron
+- non_coding proxintron500
+- non_coding distintron500
 - non_coding transcript
 - non_coding gene
 - non_coding Selenocysteine
