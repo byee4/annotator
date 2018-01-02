@@ -38,7 +38,7 @@ In theory any other db file (built from a GTF file) should work... but use at yo
 # Annotator Example Usage:
 
 ```
-annotate-bed \
+annotator \
 --input BED6_FILE \
 --output OUTPUT_FILE \
 --gtfdb gencode.v19.annotation.gtf.db \
