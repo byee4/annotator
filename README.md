@@ -20,7 +20,6 @@ conda install --override-channels \
 ```
 git clone https://github.com/byee4/annotator/
 cd annotator
-python setup.py build
 python setup.py install
 ```
 
@@ -36,7 +35,7 @@ python setup.py install
 
 In theory any other db file (built from a GTF file) should work... but use at your own risk!!!
 
-### Example Usage:
+# Annotator Example Usage:
 
 ```
 annotate-bed \
@@ -124,4 +123,73 @@ prioritize positive stranded features first.
 include these chromosomes for faster processing and less memory
 footprint. Leave blank to hash all chromosomes in the db file
 
-Let me know if you have issues/questions: bay001@ucsd.edu
+# create_region_bedfiles
+Given a gtf db file, create one or more bedfiles describing merged regions of interest.
+
+###Usage:
+```
+create_region_bedfiles \
+--db_file inputs/gencode.vM10.annotation.db \  # database file downloaded from above
+--species mm10 \  # sets the gff/gtf nomenclature (essentially whether it's gencode or wormbase gtf format)
+--cds_out outputs/mm10_vM10_cds.bed \  # output cds region
+--proxintron_out outputs/mm10_vM10_proxintrons.bed \  # output proximal intron regions (500nt from exons)
+--distintron_out outputs/mm10_vM10_distintrons.bed \  # output distal intron regions (> 500nt from exons)
+--utr5_out outputs/mm10_vM10_five_prime_utrs.bed \  # output 5'UTR regions
+--utr3_out outputs/mm10_vM10_three_prime_utrs.bed  # output 3' UTR regions
+```
+
+### Methods:
+- To find CDS: parse the gtf file for all 'CDS' featuretypes, then for each gene,
+merge overlapping regions.
+- To find prox/distal introns: parse the gtf file for all 'exon' featuretypes, then for each
+transcript, infer all introns. For each set of introns, classify its distance from an exon as
+being either 'proximal' or 'distal' by 500nt (hardcoded for now), and group each region by its
+gene id. Then merge overlapping regions on a per-gene basis.
+- To find 5/3' UTRs: parse the gtf file for all 'UTR' featuretypes, then use
+the CDS features to classify each according to whether or not it lies upstream or
+downstream of a transcript's CDS. Then merge overlapping regions on a per-gene basis.
+
+### Notes:
+- You do NOT need to specify all output files, just the regions you are interested in
+- However in order for this to work with clip_analysis_legacy/analyze_motifs, you DO need to name the outputs as:
+    - ${SPECIES}_cds.bed
+    - ${SPECIES}_distintron500.bed
+    - ${SPECIES}_proxintron500.bed
+    - ${SPECIES}_three_prime_utrs.bed
+    - ${SPECIES}_five_prime_utrs.bed
+
+# miRNA_name2id:
+This script takes a file containing a column with miRNA names and appends an appropriate accession ID
+given either a custom name -> accession file, or a gffdb file.
+
+### Usage:
+```
+miRNA_name2id.py \
+--input inputs/all_mirnas.csv \  # tab or SEP separated file
+--sep , \  # specify whether or not this file is tab, comma, or some other separated
+--custom inputs/ensembl2name_GCm38_mart_export.tsv \  # if applicable, use a custom file (see below)
+--name_col miRNA \  # identify the column where the name field is held
+--output outputs/all_mirnas.with_ids.csv \
+--gffdb inputs/mmu.mirBase_v21.GCm38.gff3.db  # the database file created from a gff file downloaded from mirbase.
+
+```
+### Other Options:
+```--add_mature``` species whether or not you want an additional column (mature) to your table.
+
+### Using custom versus GFF files for translation:
+This script can take either (or both) a gffdb file that you can download from mirbase, or a tabbed custom file
+from somewhere else (like ensembl biomart). This file is expected to have the format ```PRECURSOR_ACCESSION\tNAME\tMATURE```
+where MATURE is an optional column linking the precursor accession to its processed mature transcript.
+
+
+### Notes:
+- If a miRNA name is associated with more than one accession, the script will return all accessions delimited with ```|```
+- You can use the ```build_gffutils_db``` script to create a gffdb from a gff file downloaded from mirbase.
+
+# General notes:
+- The ```--species``` flag is only important for setting the GTF file nomenclature; different GTF/GFF files have
+differently formatted "attributes" terminologies (see the difference between a wormbase.org and a gencode GTF file).
+Currently setting this flag to either 'ce10' or 'ce11' will assuming it is formatted the wormbase way. Otherwise
+the format will default to the 'gencode' nomenclature. To use another format, you will have to look at annotate_bed.get_keys(),
+which tells this package what keys to expect from the 'attributes' section of the GTF file.
+-
