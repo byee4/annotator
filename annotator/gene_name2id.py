@@ -1,9 +1,7 @@
 #!/usr/bin/env python
 
-# Converts a file that is labeled with miRNA names into one that is labeled
-# with miRNA accessions
-
-# these two are really a minimum
+# Converts a file that is labeled with gene names into one that is labeled
+# with gene ids
 
 from __future__ import print_function
 from __future__ import division
@@ -33,7 +31,6 @@ def get_id_from_namerow(row, name2id, name_col):
     except KeyError:
         print('Cant find {} in the database!'.format(str(row[name_col])))
         return ''
-
 
 def add_id_to_dataframe(df, name2id_dict, name_col):
     """ adds id values to pandas dataframe """

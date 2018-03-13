@@ -118,37 +118,59 @@ def get_keys(species):
         either one of: 'hg19','mm10','ce11','mm9','hg38'
     :return:
     """
-    if species == 'ce11':
+
+    if species == 'ce10':
+        print("species is {}".format(species))
         cds_key = 'CDS'
         utr3_key = 'three_prime_UTR'
         utr5_key = 'five_prime_UTR'
         utr_key = None
+        gene_key = 'gene'
         gene_name_key = 'gene_name'
         transcript_id_key = 'transcript_id'
         type_key = 'transcript_biotype'
         exon_key = 'exon'
         gene_id_key = 'gene_id'
+        gene_type_key = 'gene_biotype'
+    elif species == 'ce11':
+        print("species is {}".format(species))
+        cds_key = 'CDS'
+        utr3_key = 'three_prime_utr'
+        utr5_key = 'five_prime_utr'
+        utr_key = None
+        gene_key = 'gene'
+        gene_name_key = 'gene_name'
+        transcript_id_key = 'transcript_id'
+        type_key = 'transcript_biotype'
+        exon_key = 'exon'
+        gene_id_key = 'gene_id'
+        gene_type_key = 'gene_biotype'
     else:
+        print("species is {}".format(species))
         cds_key = 'CDS'
         utr3_key = None  #
-        utr5_key = None  # in human/mice, this key doesn't really exist
+        utr5_key = None  # in human/mice, this key doesn't exist
         utr_key = 'UTR'
+        gene_key = 'gene'
         gene_name_key = 'gene_name'
         transcript_id_key = 'transcript_id'
         type_key = 'transcript_type'
         exon_key = 'exon'
         gene_id_key = 'gene_id'
+        gene_type_key = 'gene_type'
 
     keys = {
         'cds': cds_key,
         'utr3': utr3_key,
         'utr5': utr5_key,
         'utr': utr_key,
+        'gene': gene_key,
         'gene_name': gene_name_key,
         'transcript_id': transcript_id_key,
         'transcript_type': type_key,
         'exon': exon_key,
-        'gene_id': gene_id_key
+        'gene_id': gene_id_key,
+        'gene_type': gene_type_key
     }
     return keys
 
@@ -277,7 +299,10 @@ def hash_features(db, chromosomes, append_chr, fuzzy,
 
             num_features += 1
         progress.update(1)
-
+    # for feature in features_dict['chr7', 129, '+']:
+    #     if feature.attributes['gene_id'][0] == 'ENSG00000128607.9':
+    #         if feature.featuretype == 'CDS':
+    #             print(feature)
     return features_dict, num_features
 
 
@@ -358,19 +383,22 @@ def find_introns(transcript, exons):
         pos_append(exon['start'] - 1)
         pos_append(exon['end'] + 1)
     positions = sorted(positions)
-
-    # feature doesn't start with an intron
-    if positions[0] < transcript['start']:
-        positions.pop(0)
-    else:
-        positions.insert(transcript['start'])
-    # feature doesn't end at an intron
-    if positions[-1] > transcript['end']:
-        positions.pop(-1)
-    else:
-        pos_append(transcript['end'])
-    for i in range(0, len(positions) - 1, 2):
-        intron_append({'start': positions[i], 'end': positions[i + 1]})
+    try:
+        # feature doesn't start with an intron
+        if positions[0] < transcript['start']:
+            positions.pop(0)
+        else:
+            positions.insert(transcript['start'])
+        # feature doesn't end at an intron
+        if positions[-1] > transcript['end']:
+            positions.pop(-1)
+        else:
+            pos_append(transcript['end'])
+        for i in range(0, len(positions) - 1, 2):
+            intron_append({'start': positions[i], 'end': positions[i + 1]})
+    except IndexError:
+        print("No exons found: {}".format(transcript), positions)
+        return []
     return introns
 
 
@@ -512,9 +540,16 @@ def get_all_overlapping_features_from_query_stranded(
     """
     features = []
     append = features.append
+
+
+
     start_key = int(qstart / HASH_VAL)
     end_key = int(qend / HASH_VAL)
+
+
     qstart = qstart + 1  # change 0-based bed to 1-based gff
+
+
     for i in range(start_key, end_key + 1):
         for feature in features_dict[chrom, i, strand]:
             # query completely contains feature
@@ -526,7 +561,7 @@ def get_all_overlapping_features_from_query_stranded(
                 feature.attributes['overlap'] = 'feature_contains_query'
                 append(feature)
             # feature partially overlaps (qstart < fstart < qend)
-            elif qstart <= feature.start and qend > feature.start:
+            elif qstart <= feature.start and qend >= feature.start:
                 feature.attributes[
                     'overlap'] = 'partial_by_{}_bases'.format(
                     qend - (feature.start - 1))
@@ -641,12 +676,13 @@ def is_protein_coding(transcript_type):
     return False
 
 def classify_transcript_type(
-        transcript_type, distinct_nc_tx=None
+        transcript_type, gene_type, distinct_nc_tx=None
 ):
     """
     deprecates is_protein_coding().
 
     :param transcript_type: string
+    :param gene_type: string
     :param distinct_nc_tx: list or None
         We can pull out any distinct noncoding regions using this parameter.
         For example, we can specify distinct_nc_tx = ['lincRNA', 'pseudogene'],
@@ -659,7 +695,9 @@ def classify_transcript_type(
     # if the transcript type is protein coding, easy. return 'protein coding'.
     if transcript_type == 'protein_coding':
         return 'protein_coding'
-
+    # TODO: Is this protein coding?
+    # elif gene_type == 'protein_coding' and transcript_type == 'retained_intron':
+    #     return 'protein_coding'
     # if we specify any non_coding type to pull out, returns the type here.
     if distinct_nc_tx is not None:
         for distinct_type in distinct_nc_tx:
@@ -683,11 +721,11 @@ def return_highest_priority_feature(formatted_features, priority):
     combined_dict = defaultdict(list)
     for feature_string in formatted_features:
         transcript, start, end, strand, feature_type, gene_id, \
-        gene_name, transcript_type_list, overlap = feature_string.split(':')
+        gene_name, transcript_type_list, gene_type_list, overlap = feature_string.split(':')
         transcript_type_list = transcript_type_list.split(',')
-        for transcript_type in transcript_type_list:
+        for transcript_type, gene_type in zip(transcript_type_list, gene_type_list):
             combined_dict[
-                classify_transcript_type(transcript_type),
+                classify_transcript_type(transcript_type, gene_type),
                 feature_type
             ].append(
                 feature_string
@@ -878,7 +916,9 @@ def annotate(
         for feature in features:
             append_count += 1
             # if we only have UTR, specify what kind of UTR (3' or 5').
-            if feature.featuretype == keys['utr']:
+            if feature.featuretype is None:
+                print("Warning: featuretype for feature {} is None".format(feature))
+            elif feature.featuretype == keys['utr']:
                 feature.featuretype = classify_utr(feature, cds_dict)
             to_append += "{}:{}:{}:{}:{}:".format(
                 transcript,
@@ -905,6 +945,12 @@ def annotate(
                 to_append = to_append + '-:'
             if keys['transcript_type'] in feature.attributes.keys():
                 for t in feature.attributes[keys['transcript_type']]:
+                    to_append += '{},'.format(t)
+                to_append = to_append[:-1] + ':'
+            else:
+                to_append = to_append + '-:'
+            if keys['gene_type'] in feature.attributes.keys():
+                for t in feature.attributes[keys['gene_type']]:
                     to_append += '{},'.format(t)
                 to_append = to_append[:-1] + ':'
             else:
@@ -1067,7 +1113,7 @@ def annotate_bed_single_core(line, stranded, transcript_priority,
     return result
 
 
-def annotate_bed(db_file, bed_file, out_file, stranded, chroms,
+def annotate_bed(db_file, bed_files, out_files, stranded, chroms,
              transcript_priority, gene_priority, species, append_chr, fuzzy,
              cores):
     """
@@ -1076,10 +1122,10 @@ def annotate_bed(db_file, bed_file, out_file, stranded, chroms,
 
     :param db_file: basestring
         gffutils database sqlite file
-    :param bed_file: basestring
-        unannotated bed file
-    :param out_file: basestring
-        output file name
+    :param bed_file: list
+        list of unannotated bed files
+    :param out_file: list
+        list of output file names
     :param chroms: list
         list of strings pertaining to chromosomes we want to use to annotate.
     :param species: basestring
@@ -1096,18 +1142,20 @@ def annotate_bed(db_file, bed_file, out_file, stranded, chroms,
         db_file, chroms=chroms, species=species, append_chr=append_chr,
         fuzzy=fuzzy
     )
-
-    i = open(bed_file, 'r')
-    lines = i.readlines()
-    progress = trange(len(lines))
-    with open(out_file, 'w') as o:
-        writer = csv.writer(o, delimiter='\t')
-        writer.writerows([
-            annotate_bed_single_core(  # TODO: implement multicore method
-                line, stranded, transcript_priority,
-                gene_priority, cds_dict, features_dict,
-                keys, progress
-            ) for line in lines]
-        )
-    i.close()
+    for n in range(len(bed_files)):
+        bed_file = bed_files[n]
+        out_file = out_files[n]
+        i = open(bed_file, 'r')
+        lines = i.readlines()
+        progress = trange(len(lines))
+        with open(out_file, 'w') as o:
+            writer = csv.writer(o, delimiter='\t')
+            writer.writerows([
+                annotate_bed_single_core(  # TODO: implement multicore method
+                    line, stranded, transcript_priority,
+                    gene_priority, cds_dict, features_dict,
+                    keys, progress
+                ) for line in lines]
+            )
+        i.close()
     return 0

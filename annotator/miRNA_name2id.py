@@ -106,7 +106,7 @@ def build_name_to_precursor_id_dict(gffdb_file, custom_file):
         'ID' in feature.attributes.keys()
         
     :return name2id_dict: dict
-        {name:id}
+        {name:id[]}
     """
     # delim = '|'
     precursor_name2id = defaultdict(list)
@@ -169,6 +169,7 @@ def read_and_append_id(in_file, sep, name_col, gffdb_file, custom_file, add_matu
 
 
 def convert(in_file, sep, name_col, out_file, gtfdb_file, custom_file, add_mature, delete_original_column=True):
+    """ Main runner script for conversion. """
     df = read_and_append_id(
         in_file, sep, name_col, gtfdb_file, custom_file,
         add_mature,

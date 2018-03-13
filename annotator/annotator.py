@@ -18,8 +18,7 @@ from future.utils import raise_with_traceback
 from future.utils import iteritems
 
 from argparse import ArgumentParser
-# from annotator import annotate_bed
-from annotator import annotate_bed
+from . import annotate_bed
 import sys
 
 GENE_PRIORITY = [
@@ -33,8 +32,8 @@ GENE_PRIORITY = [
     #['protein_coding','intron'],
     ['protein_coding','proxintron500'],
     ['protein_coding','distintron500'],
+    ['non_coding', 'exon'],
     ['protein_coding','Selenocysteine'],
-    ['non_coding','exon'],
     # ['non_coding','intron'],
     ['non_coding', 'proxintron500'],
     ['non_coding', 'distintron500'],
@@ -54,8 +53,8 @@ TRANSCRIPT_PRIORITY = [
     #['protein_coding','intron'],
     ['protein_coding','proxintron500'],
     ['protein_coding','distintron500'],
-    ['protein_coding','Selenocysteine'],
     ['non_coding', 'exon'],
+    ['protein_coding','Selenocysteine'],
     ['non_coding','proxintron500'],
     ['non_coding','distintron500'],
     ['non_coding','transcript'],
@@ -85,14 +84,16 @@ def main():
     parser.add_argument(
         "--output",
         dest="output",
-        help="output file",
-        required=False
+        help="output file(s)",
+        required=False,
+        nargs='+'
     )
     parser.add_argument(
         "--input",
         dest="input",
-        help="input bed6 file",
-        required=True
+        help="input bed6 file(s)",
+        required=True,
+        nargs='+'
     )
     parser.add_argument(
         "--gtfdb",
@@ -157,8 +158,8 @@ def main():
         parser.print_help()
         sys.exit(0)
 
-    input_bed_file = args.input
-    output_annotated_file = args.output
+    input_bed_files = args.input
+    output_annotated_files = args.output
     gtfdb_file = args.gtfdb
     chroms = args.limit_chroms_to
     unstranded = args.unstranded
@@ -186,8 +187,9 @@ def main():
 
     ### Call main function
     annotate_bed.annotate_bed(
-        gtfdb_file, input_bed_file, output_annotated_file, stranded, chroms,
-        transcript_priority, gene_priority, species, append_chr, fuzzy, cores
+        gtfdb_file, input_bed_files, output_annotated_files, stranded, chroms,
+        transcript_priority, gene_priority, species, append_chr,
+        fuzzy, cores
     )
 
 if __name__ == "__main__":
