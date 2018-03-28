@@ -22,11 +22,10 @@ from future.utils import iteritems
 from argparse import ArgumentParser
 import sys
 import gffutils
-import os
 import pybedtools
 import pandas as pd
 from collections import defaultdict
-from . import annotate_bed
+from . import annotation_functions as af
 from tqdm import trange
 
 def create_bedtools(features, keys, by_transcript=False):
@@ -115,23 +114,26 @@ def create_cds_region_bedfile(db, keys, cds_out, by_transcript=False):
          for GTF parsing
     :param cds_out: str
         file name for output bedfile
-    :return: 
+    :return cds: 
     """
     cds_features = []
 
     for cds_feature in db.features_of_type(keys['cds']):
         cds_features.append(cds_feature)
     cds = create_bedtools(cds_features, keys, by_transcript)
-    if not by_transcript:
-        merge_bedtool_by_gene(cds).to_csv(
-            cds_out, sep=str("\t"), header=False,
-            index=False
-        )
+
+    if by_transcript:
+        cdsdf = cds.to_dataframe()
     else:
-        cds.to_dataframe().to_csv(
+        cdsdf = merge_bedtool_by_gene(cds)
+
+    if cds_out is not None:
+        cdsdf.sort_values(by=['chrom','start','end'], inplace=True)
+        cdsdf.to_csv(
             cds_out, sep=str("\t"), header=False,
             index=False
         )
+    return cds
 
 def create_exon_region_bedfile(db, keys, exon_out, by_transcript=False):
     """
@@ -157,6 +159,7 @@ def create_exon_region_bedfile(db, keys, exon_out, by_transcript=False):
             index=False
         )
     else:
+        exons = exons.sort()
         exons.to_dataframe().to_csv(
             exon_out, sep=str("\t"), header=False,
             index=False
@@ -221,7 +224,7 @@ def create_utr_region_bedfiles(db, keys, cds_dict, utr3_out, utr5_out, by_transc
     # Use CDS dict to determine for each UTR, whether it's 3/5'
     if keys['utr'] is not None:
         for utr_feature in db.features_of_type(keys['utr']):
-            classified_utr = annotate_bed.classify_utr(utr_feature, cds_dict)
+            classified_utr = af.classify_utr(utr_feature, cds_dict)
             if classified_utr == '5utr':
                 five_prime_utr_features.append(utr_feature)
             elif classified_utr == '3utr':
@@ -240,22 +243,29 @@ def create_utr_region_bedfiles(db, keys, cds_dict, utr3_out, utr5_out, by_transc
     utr5 = create_bedtools(five_prime_utr_features, keys, by_transcript)
     utr3 = create_bedtools(three_prime_utr_features, keys, by_transcript)
     # Merge any overlapping introns by transcript and save
-    if utr3_out is not None:
-        if not by_transcript:
-            merge_bedtool_by_gene(utr5).to_csv(utr5_out, sep=str("\t"),
-                                       header=False, index=False)
-        else:
-            utr5.to_dataframe().to_csv(
-                utr5_out, sep=str("\t"), header=False, index=False
-            )
+
+    if by_transcript:
+        utr5df = utr5.to_dataframe()
+    else:
+        utr5df = merge_bedtool_by_gene(utr5)
+
     if utr5_out is not None:
-        if not by_transcript:
-            merge_bedtool_by_gene(utr3).to_csv(utr3_out, sep=str("\t"),
-                                       header=False, index=False)
-        else:
-            utr3.to_dataframe().to_csv(
-                utr3_out, sep=str("\t"), header=False, index=False
-            )
+        utr5df.to_csv(
+            utr5_out, sep=str("\t"), header=False, index=False
+        )
+
+
+    if by_transcript:
+        utr3df = utr3.to_dataframe()
+    else:
+        utr3df = merge_bedtool_by_gene(utr3)
+
+    if utr3_out is not None:
+        utr3df.to_csv(
+            utr3_out, sep=str("\t"), header=False, index=False
+        )
+    return utr5, utr3
+
 def create_intron_region_bedfiles(db, exons_dict, transcripts_dict, keys,
             proxintron_out, distintron_out, allintron_out, by_transcript):
     """
@@ -288,9 +298,9 @@ def create_intron_region_bedfiles(db, exons_dict, transcripts_dict, keys,
         name = keys['transcript_id']
     else:
         name = keys['gene_id']
-    progress = trange(len(annotate_bed.chromosome_set(db)))
+    progress = trange(len(af.chromosome_set(db)))
 
-    for chrom in annotate_bed.chromosome_set(db):
+    for chrom in af.chromosome_set(db):
         progress.set_description("Calculating introns for chromosome {}".format(chrom))
 
         for element in db.region(seqid=chrom):
@@ -302,7 +312,7 @@ def create_intron_region_bedfiles(db, exons_dict, transcripts_dict, keys,
                     exons = exons_dict[transcript_id]
                     transcript = transcripts_dict[transcript_id]
                     # Given a transcript ID and its exons, find introns
-                    introns = annotate_bed.find_introns(transcript, exons)
+                    introns = af.find_introns(transcript, exons)
                     # gene_id is iterable here, maybe one transcript may have multiple geneids?
                     for intron in introns:
                         for i in range(len(element.attributes[name])):
@@ -316,7 +326,7 @@ def create_intron_region_bedfiles(db, exons_dict, transcripts_dict, keys,
                                  str(element.score), element.strand]
                             )
                             allintrons.append(intron_interval)
-                            proxdist_dict = annotate_bed.get_proxdist_from_intron(
+                            proxdist_dict = af.get_proxdist_from_intron(
                                 intron_interval, distance=distance
                             )
                             for prox in proxdist_dict['prox']:
@@ -331,33 +341,38 @@ def create_intron_region_bedfiles(db, exons_dict, transcripts_dict, keys,
     distintrons = pybedtools.BedTool(distintrons)
     allintrons = pybedtools.BedTool(allintrons)
     # Merge any overlapping introns by transcript and save
+
+    if by_transcript:
+        proxintronsdf = proxintrons.to_dataframe()
+    else:
+        proxintronsdf = merge_bedtool_by_gene(proxintrons)
+
     if proxintron_out is not None:
-        if by_transcript:
-            proxintrons.to_dataframe().to_csv(
-                proxintron_out, sep=str("\t"), header=False, index=False
-            )
-        else:
-            merge_bedtool_by_gene(proxintrons).to_csv(
-                proxintron_out, sep=str("\t"), header=False, index=False
-            )
+        proxintronsdf.to_csv(
+            proxintron_out, sep=str("\t"), header=False, index=False
+        )
+
+
+    if by_transcript:
+        distintronsdf = distintrons.to_dataframe()
+    else:
+        distintronsdf = merge_bedtool_by_gene(distintrons)
+
     if distintron_out is not None:
-        if by_transcript:
-            distintrons.to_dataframe().to_csv(
-                distintron_out, sep=str("\t"), header=False, index=False
-            )
-        else:
-            merge_bedtool_by_gene(distintrons).to_csv(
-                distintron_out, sep=str("\t"), header=False, index=False
-            )
+        distintronsdf.to_csv(
+            distintron_out, sep=str("\t"), header=False, index=False
+        )
+
+    if by_transcript:
+        allintronsdf = distintrons.to_dataframe()
+    else:
+        allintronsdf = merge_bedtool_by_gene(allintrons)
+
     if allintron_out is not None:
-        if by_transcript:
-            allintrons.to_dataframe().to_csv(
-                allintron_out, sep=str("\t"), header=False, index=False
-            )
-        else:
-            merge_bedtool_by_gene(allintrons).to_csv(
-                allintron_out, sep=str("\t"), header=False, index=False
-            )
+        allintronsdf.to_csv(
+            allintron_out, sep=str("\t"), header=False, index=False
+        )
+    return proxintrons, distintrons, allintrons
 
 def create_region_bedfiles(
         db_file, species, cds_out, utr3_out, utr5_out,
@@ -365,7 +380,7 @@ def create_region_bedfiles(
 ):
     ### get the parsed regions ###
 
-    keys = annotate_bed.get_keys(species)
+    keys = af.get_keys(species)
     db = gffutils.FeatureDB(db_file)
     featuretypes = [x.lower() for x in list(db.featuretypes())]
 
@@ -375,13 +390,13 @@ def create_region_bedfiles(
 
     # Creates 3 and 5' UTR regions
     if utr3_out is not None or utr5_out is not None:
-        cds_dict = annotate_bed.get_all_cds_dict(db, keys['cds'])
+        cds_dict = af.get_all_cds_dict(db, keys['cds'])
         create_utr_region_bedfiles(db, keys, cds_dict, utr3_out, utr5_out, by_transcript)
 
     # Creates the prox and dist intron regions
     if proxintron_out is not None or distintron_out is not None or allintron_out is not None:
-        exons_dict = annotate_bed.get_all_exons_dict(db, keys['transcript_id'])
-        transcripts_dict = annotate_bed.get_all_transcripts_dict(db, keys[
+        exons_dict = af.get_all_exons_dict(db, keys['transcript_id'])
+        transcripts_dict = af.get_all_transcripts_dict(db, keys[
             'transcript_id'])
         create_intron_region_bedfiles(
             db, exons_dict, transcripts_dict, keys,

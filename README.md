@@ -157,6 +157,8 @@ downstream of a transcript's CDS. Then merge overlapping regions on a per-gene b
     - ${SPECIES}_proxintron500.bed
     - ${SPECIES}_three_prime_utrs.bed
     - ${SPECIES}_five_prime_utrs.bed
+    - ${SPECIES}_exons.bed
+    - ${SPECIES}_genes.bed
 
 # miRNA_name2id:
 This script takes a file containing a column with miRNA names and appends an appropriate accession ID

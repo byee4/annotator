@@ -7,7 +7,8 @@ bedtools=2.26 \
 pybedtools=0.7.10 \
 tqdm=4.14 \
 future=0.16 \
-futures=3.2.0
+futures=3.2.0 \
+pytest=3.5.0
 
 source activate annotator
 
@@ -16,3 +17,7 @@ conda install --override-channels \
 
 # already in install directory
 python setup.py install
+
+# adds cwl directory to path
+export PATH=${PWD}/cwl:$PATH
+

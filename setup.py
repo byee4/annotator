@@ -7,8 +7,8 @@ except ImportError:
 
 setup(
     name='annotator',
-    version='0.0.6',
-    url='',
+    version='0.0.10',
+    url='github.com/byee4/annotator',
     license='',
     author='brianyee',
     author_email='',
@@ -19,7 +19,13 @@ setup(
     },
     entry_points = {
         'console_scripts': [
-            'annotate-bed = annotator.annotator:main',
+            'annotator = annotator.annotator:main',
+            'create_region_bedfiles = annotator.create_region_bedfiles:main',
+            'miRNA_name2id = annotator.miRNA_name2id:main',
+            'gene_name2id = annotator.gene_name2id:main',
+            'build_gffutils_db = annotator.build_gffutils_db:main',
+            'get_region_lengths = annotator.get_region_lengths:main',
+            'create_as_structure = annotator.create_AS_STRUCTURE:main',
         ]
     }
 )
