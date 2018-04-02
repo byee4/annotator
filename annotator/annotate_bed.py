@@ -249,11 +249,7 @@ def get_all_overlapping_features_from_query_stranded(
                     'overlap'] = 'partial_by_{}_bases'.format(
                     feature.end - qstart)
                 append(feature)
-            else:
-                print("Returned overlapping feature does not overlap!")
-                print("querypos: {}-{}, featurepos: {}-{}".format(
-                    qstart, qend, feature.start, feature.end)
-                )
+
     return features
 
 
