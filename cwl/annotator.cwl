@@ -1,10 +1,12 @@
 #!/usr/bin/env cwltool
 
 cwlVersion: v1.0
-
 class: CommandLineTool
 
-baseCommand: [annotator/annotator.py]
+requirements:
+  - class: InlineJavascriptRequirement
+
+baseCommand: [annotator]
 
 inputs:
 
@@ -18,9 +20,19 @@ inputs:
 
   output:
     type: string
+    default: ""
     inputBinding:
       position: 2
       prefix: --output
+      valueFrom: |
+        ${
+          if (inputs.output == "") {
+            return inputs.input.nameroot + ".annotated";
+          }
+          else {
+            return inputs.output;
+          }
+        }
     label: "output tsv file"
     doc: "annotated tabbed file"
 
@@ -31,13 +43,13 @@ inputs:
       prefix: --gtfdb
 
   transcriptPriorityFile:
-    type: File
+    type: File?
     inputBinding:
       position: 4
       prefix: --transcript-priority-file
 
   genePriorityFile:
-    type: File
+    type: File?
     inputBinding:
       position: 5
       prefix: --gene-priority-file
@@ -73,7 +85,15 @@ outputs:
   output_file:
     type: File
     outputBinding:
-      glob: $(inputs.output)
+      glob: |
+        ${
+          if (inputs.output == "") {
+            return inputs.input.nameroot + ".annotated";
+          }
+          else {
+            return inputs.output;
+          }
+        }
     label: "output"
     doc: "File containing output of the annotation program"
 

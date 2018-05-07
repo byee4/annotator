@@ -3,19 +3,9 @@
 input:
   class: File
   path: inputs/204.01v02.IDR.out.0102merged.chr11.70M-71M.bed
-output: 204.01v02.IDR.out.0102merged.chr11.70M-71M.bed.annotated
+
 gtfdb:
   class: File
-  path: inputs/gencode.v19.annotation.chr11.70M-71M.gtf
+  path: inputs/gencode.v19.annotation.chr11.70M-71M.gtf.db
+
 species: hg19
-
-### only change if needed ###
-
-transcriptPriorityFile:
-  class: File
-  path: inputs/hg19.gencode19.priority.txt
-genePriorityFile:
-  class: File
-  path: inputs/hg19.gencode19.priority.txt
-unstranded: false
-appendChr: false
