@@ -30,15 +30,15 @@ from tqdm import trange
 
 def create_bedtools(features, keys, by_transcript=False):
     """
-    Given a list of features and keys dictionary, create a bedtool
+    Given a list of features and chr19_keys dictionary, create a bedtool
     containing intervals of features whose name is specified
-    using keys['gene_id']
+    using chr19_keys['gene_id']
 
     :param features: list
         list of gffutils features (1-based) for which to convert
         to bedtool intervals
     :param keys: dict
-        a set of keys and values which helps translate different
+        a set of chr19_keys and values which helps translate different
         GTF/GFF nomenclatures (ie. 'cds'
     :return:
     """

@@ -48,8 +48,8 @@ def build_name_to_id_dict(gffdb_file, custom_file):
         path of the gtfdb.
         Database must contain:
         'gene' in featuretype field
-        'gene_name' in feature.attributes.keys()
-        'gene_id' in feature.attributes.keys()
+        'gene_name' in feature.attributes.chr19_keys()
+        'gene_id' in feature.attributes.chr19_keys()
         
     :return name2id_dict: dict
         {gene_name:gene_id[]}

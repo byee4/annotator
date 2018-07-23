@@ -21,36 +21,14 @@ from argparse import ArgumentParser
 from . import annotate_bed
 import sys
 
-GENE_PRIORITY = [
-    ['protein_coding','CDS'],
-    ['protein_coding','start_codon'],
-    ['protein_coding','stop_codon'],
-    ['protein_coding','5utr_and_3utr'],
-    ['protein_coding','5utr'],
-    ['protein_coding','3utr'],
-    ['protein_coding','unclassified_utr'],
-    #['protein_coding','intron'],
-    ['protein_coding','proxintron500'],
-    ['protein_coding','distintron500'],
-    ['non_coding', 'exon'],
-    ['protein_coding','Selenocysteine'],
-    # ['non_coding','intron'],
-    ['non_coding', 'proxintron500'],
-    ['non_coding', 'distintron500'],
-    ['non_coding','transcript'],
-    ['non_coding','gene'],
-    ['non_coding','Selenocysteine'],
-]
-
 TRANSCRIPT_PRIORITY = [
+    ['miRNA','exon'],
     ['protein_coding','CDS'],
     ['protein_coding','start_codon'],
     ['protein_coding','stop_codon'],
-    ['protein_coding','5utr_and_3utr'],
-    ['protein_coding','5utr'],
     ['protein_coding','3utr'],
+    ['protein_coding', '5utr'],
     ['protein_coding', 'unclassified_utr'],
-    #['protein_coding','intron'],
     ['protein_coding','proxintron500'],
     ['protein_coding','distintron500'],
     ['non_coding', 'exon'],
@@ -61,6 +39,26 @@ TRANSCRIPT_PRIORITY = [
     ['non_coding','gene'],
     ['non_coding','Selenocysteine'],
 ]
+
+GENE_PRIORITY = [
+    ['miRNA','exon'],
+    ['protein_coding','CDS'],
+    ['protein_coding','start_codon'],
+    ['protein_coding','stop_codon'],
+    ['protein_coding','3utr'],
+    ['protein_coding', '5utr'],
+    ['protein_coding','unclassified_utr'],
+    ['non_coding', 'exon'],
+    ['protein_coding','proxintron500'],
+    ['non_coding', 'proxintron500'],
+    ['protein_coding','distintron500'],
+    ['non_coding', 'distintron500'],
+    ['protein_coding', 'Selenocysteine'],
+    ['non_coding','transcript'],
+    ['non_coding','gene'],
+    ['non_coding','Selenocysteine'],
+]
+
 
 def parse_annotation_priority(priority_file, delim=','):
     """

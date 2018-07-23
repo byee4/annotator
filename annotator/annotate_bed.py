@@ -116,7 +116,7 @@ def hash_features(db, chromosomes, append_chr, fuzzy,
                   transcript_id_key, featuretypes):
     """
     hashes features by position.
-    :return features_dict : collections.defaultdict()
+    :return chr19_features_dict : collections.defaultdict()
         dictionary of features{[chrom, pos/HASH_VAL, strand] : feature_list}
     """
     num_features = 0
@@ -192,7 +192,7 @@ def hash_features(db, chromosomes, append_chr, fuzzy,
 
             num_features += 1
         progress.update(1)
-    # for feature in features_dict['chr7', 129, '+']:
+    # for feature in chr19_features_dict['chr7', 129, '+']:
     #     if feature.attributes['gene_id'][0] == 'ENSG00000128607.9':
     #         if feature.featuretype == 'CDS':
     #             print(feature)
@@ -204,7 +204,7 @@ def get_all_overlapping_features_from_query_stranded(
     """
     Given a query location (chr, start, end), return all features that
     overlap by at least one base. Functions similarly to gffutils db.region(),
-    but uses the pre-hashed self.features_dict to greatly speed things up.
+    but uses the pre-hashed self.chr19_features_dict to greatly speed things up.
 
     :param chrom : string
     :param qstart : int
@@ -379,6 +379,12 @@ def classify_transcript_type(
     # elif gene_type == 'protein_coding' and transcript_type == 'retained_intron':
     #     return 'protein_coding'
     # if we specify any non_coding type to pull out, returns the type here.
+    # if transcript_type == 'snoRNA':
+    #     return 'snoRNA'
+    # if transcript_type == 'scaRNA':
+    #     return 'scaRNA'
+    if transcript_type == 'miRNA':
+        return 'miRNA'
     if distinct_nc_tx is not None:
         for distinct_type in distinct_nc_tx:
             if transcript_type == distinct_type:
@@ -401,6 +407,7 @@ def return_highest_priority_feature(formatted_features, priority):
     # Build dict
     combined_dict = defaultdict(list)
     for feature_string in formatted_features:
+        # print("FEATURE STRING: {}".format(feature_string))
         transcript, start, end, strand, feature_type, gene_id, \
         gene_name, transcript_type_list, gene_type_list, overlap = feature_string.split(':')
         transcript_type_list = transcript_type_list.split(',')
@@ -411,11 +418,13 @@ def return_highest_priority_feature(formatted_features, priority):
             ].append(
                 feature_string
             )
+    # print("COMBINED DICT STEP 1: {}".format(combined_dict))
     # return the highest one
     combined_dict = OrderedDict(
         combined_dict
     )  # turn into ordered dict, is that ok?
     # print("combined dict: {}".format(combined_dict))
+    # print("COMBINED DICT STEP 2: {}".format(combined_dict))
     try:
         # append nonexisting regions to the end of the priority list
         for key, _ in iteritems(combined_dict):
@@ -426,6 +435,7 @@ def return_highest_priority_feature(formatted_features, priority):
             iteritems(combined_dict),
             key=lambda x: priority.index([x[0][0], x[0][1]])
         )
+        # print("COMBINED DICT STEP 3: {}".format(combined_dict))
         # print("PRIORITY: {}".format(priority))
         # print("combined dict (sorted): {}".format(combined_dict))
     except ValueError as e:
@@ -440,7 +450,7 @@ def prioritize_transcript(unique_transcript_features, transcript_priority):
     a singular transcript for each unique gene in the feature set.
 
     :param unique_transcript_features: defaultdict[list]
-        dictionary where keys = transcript ids and values = list of
+        dictionary where chr19_keys = transcript ids and values = list of
         features associated with each transcript that overlaps with a query
         (ie. {'ENSTXYZ':['CDS', 'exon', 'transcript']}
     :param transcript_priority: list[tuple]
@@ -448,19 +458,24 @@ def prioritize_transcript(unique_transcript_features, transcript_priority):
     :return unique_genes: defaultdict[list]
     """
     unique_genes = defaultdict(list)
-
+    # print("unique transcript features: {}".format(unique_transcript_features))
     if len(unique_transcript_features.keys()) == 0:
         return 'intergenic'
-
+    # print('all transcript features: {}'.format(unique_transcript_features.keys()))
     for transcript in unique_transcript_features.keys():
         top_transcript = return_highest_priority_feature(
             unique_transcript_features[transcript],
             transcript_priority
         )[1][0]  # [0] contains the dictionary key
-
         gene_list = top_transcript.split(':')[5].split(',')
         for gene in gene_list:
             unique_genes[gene].append(top_transcript)
+
+    for g in unique_genes.keys():
+        unique_genes[g] = return_highest_priority_feature(
+            unique_genes[g],
+            transcript_priority
+        )[1]
     return unique_genes
 
 
@@ -473,6 +488,7 @@ def prioritize_genes(unique_genes, gene_priority):
     :param gene_priority: 
     :return: 
     """
+    # print("UNIQUE GENES", unique_genes)
     final_transcripts = []
     final_transcripts_append = final_transcripts.append
     for gene, transcripts in iteritems(unique_genes):
@@ -482,8 +498,15 @@ def prioritize_genes(unique_genes, gene_priority):
     feature_type, final_genes = return_highest_priority_feature(
         final_transcripts, gene_priority
     )
-
-    if feature_type[0] == 'non_coding':  # TODO: fix. hacky
+    if feature_type[0] == 'miRNA':  # TODO: fix. hacky
+        ff = []
+        for f in sorted(final_genes):
+            f = f.replace(
+                'exon', 'miRNA'
+            )
+            ff.append(f)
+        return ff
+    elif feature_type[0] == 'non_coding':  # TODO: fix. hacky
         ff = []
         for f in sorted(final_genes):
             f = f.replace(
@@ -493,6 +516,7 @@ def prioritize_genes(unique_genes, gene_priority):
             )
             ff.append(f)
         return ff
+
     else:
         return sorted(final_genes)
 
@@ -787,7 +811,7 @@ def annotate_bed_single_core(line, stranded, transcript_priority,
         multilevel dictionary containing all features in all specified
         chromosomes.
     :param keys: dict
-        dictionary of keys that specify the GTF language.
+        dictionary of chr19_keys that specify the GTF language.
     :param progress: tqdm.tqdm()
         tqdm progress object
     :return result: string

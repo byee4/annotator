@@ -38,7 +38,7 @@ def calculate_total_cds_length(db, keys):
     ### This method counts every CDS feature, may double count overlapping features ###
 
     # total_cds_feature_tx_lengths = 0
-    # for cds_feature in db.features_of_type(keys['cds']):
+    # for cds_feature in db.features_of_type(chr19_keys['cds']):
     #     total_cds_feature_tx_lengths += (cds_feature.end - cds_feature.start)
     # print('cds lengths (total): {}'.format(total_cds_feature_tx_lengths))
 
@@ -93,8 +93,8 @@ def calculate_total_utr_lengths(db, cds_dict, keys):
 
     ### This method counts every UTR feature - may double count overlapping features ###
     # Use CDS dict to determine for each UTR, whether it's 3/5'
-    # for utr_feature in db.features_of_type(keys['utr']):
-    #     classified_utr = annotate_bed.classify_utr(utr_feature, cds_dict)
+    # for utr_feature in db.features_of_type(chr19_keys['utr']):
+    #     classified_utr = annotate_bed.classify_utr(utr_feature, chr19_cds_dict)
     #     if classified_utr == '5utr':
     #         total_five_prime_utr_tx_lengths += (utr_feature.end - utr_feature.start)
     #     elif classified_utr == '3utr':
@@ -213,7 +213,7 @@ def calculate_avg_lengths(db_file, species):
     
     :param db_file: gffutils.FeatureDB
     :param species: string
-        used to generate keys corresonding to GTF column nomenclature.
+        used to generate chr19_keys corresonding to GTF column nomenclature.
     :return: 
     """
 
@@ -233,7 +233,7 @@ def calculate_total_lengths(db_file, species):
     
     :param db_file: gffutils.FeatureDB
     :param species: string
-        used to generate keys corresonding to GTF column nomenclature.
+        used to generate chr19_keys corresonding to GTF column nomenclature.
     :return: 
     """
     keys = af.get_keys(species)

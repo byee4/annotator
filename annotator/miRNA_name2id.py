@@ -102,8 +102,8 @@ def build_name_to_precursor_id_dict(gffdb_file, custom_file):
         path of the gffdb.
         Database must contain:
         'miRNA_primary_transcript' in featuretype field
-        'Name' in feature.attributes.keys()
-        'ID' in feature.attributes.keys()
+        'Name' in feature.attributes.chr19_keys()
+        'ID' in feature.attributes.chr19_keys()
         
     :return name2id_dict: dict
         {name:id[]}

@@ -167,16 +167,16 @@ def get_all_cds_dict(db, cds_key):
     dictionary containing the lowest and highest
     cds start and end vals for that transcript.
 
-    :return cds_dict : defaultdict{transcript:{'start':START, 'end':END}}
+    :return chr19_cds_dict : defaultdict{transcript:{'start':START, 'end':END}}
     """
-    # cds_dict = defaultdict(lambda: {'low': MAXVAL, 'hi': MINVAL})
+    # chr19_cds_dict = defaultdict(lambda: {'low': MAXVAL, 'hi': MINVAL})
     cds_dict = defaultdict(dict)
     for cds_feature in db.features_of_type(cds_key):
         for transcript_id in cds_feature.attributes['transcript_id']:
-            # if cds_feature.start <= cds_dict[transcript_id]['low']:
+            # if cds_feature.start <= chr19_cds_dict[transcript_id]['low']:
             if cds_feature.start <= cds_dict[transcript_id].get("low", MAXVAL):
                 cds_dict[transcript_id]['low'] = cds_feature.start
-            # if cds_feature.end >= cds_dict[transcript_id]['hi']:
+            # if cds_feature.end >= chr19_cds_dict[transcript_id]['hi']:
             if cds_feature.end >= cds_dict[transcript_id].get("hi", MINVAL):
                 cds_dict[transcript_id]['hi'] = cds_feature.end
     return cds_dict
@@ -219,7 +219,7 @@ def get_all_transcripts_dict(db, transcript_key, transcript_id_key):
     :param db: gffutils.FeatureDB
     :param transcript_key: string
     :param transcript_id_key: string
-    :return: transcripts_dict: defaultdict(dict)
+    :return: chr19_transcripts_dict: defaultdict(dict)
         hash of transcripts and their start/end coordinates
     """
     transcripts_dict = defaultdict(dict)
@@ -247,7 +247,7 @@ def gene_id_to_name(db, gene_name_key):
     """
     Returns a dictionary containing a gene_id:name translation
     Note: may be different if the 'gene_id' or 'gene_name'
-    keys are not in the source GTF file
+    chr19_keys are not in the source GTF file
     (taken from gscripts.region_helpers)
 
     :param db: gffutils.FeatureDB
@@ -375,7 +375,7 @@ def get_proxdist_from_intron(interval, distance=500):
         maximum distance away from an exon that an intron position can be
         before calling it a distal intron region.
     :return proxdist: dict(list)
-        dictionary containing 'prox' and 'dist' as keys, list of
+        dictionary containing 'prox' and 'dist' as chr19_keys, list of
         each proximal and distal intron region as values.
     """
 
