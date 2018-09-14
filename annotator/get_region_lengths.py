@@ -240,9 +240,16 @@ def calculate_total_lengths(db_file, species):
     db = gffutils.FeatureDB(db_file)
 
     cds_dict = af.get_all_cds_dict(db, keys['cds'])
-    exons_dict = af.get_all_exons_dict(db, keys['transcript_id'])
-    transcripts_dict = af.get_all_transcripts_dict(db, keys[
-        'transcript_id'])
+    exons_dict = af.get_all_exons_dict(
+        db,
+        exon_key=keys['exon'],
+        transcript_id_key=keys['transcript_id']
+    )
+    transcripts_dict = af.get_all_transcripts_dict(
+        db,
+        transcript_key=keys['transcript'],
+        transcript_id_key=keys['transcript_id']
+    )
 
     calculate_total_cds_length(db, keys)
     calculate_total_utr_lengths(db, cds_dict, keys)

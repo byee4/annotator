@@ -23,9 +23,9 @@ def get_keys(species):
     if species == 'ce10':
         print("species is {}".format(species))
         cds_key = 'CDS'
-        utr3_key = 'three_prime_UTR'
-        utr5_key = 'five_prime_UTR'
-        utr_key = None
+        utr3_key = None # 'three_prime_UTR'
+        utr5_key = None # 'five_prime_UTR'
+        utr_key = 'UTR'
         gene_key = 'gene'
         gene_name_key = 'gene_name'
         transcript_key = 'transcript'

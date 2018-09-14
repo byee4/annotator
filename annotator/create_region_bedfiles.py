@@ -217,6 +217,11 @@ def create_utr_region_bedfiles(db, keys, cds_dict, utr3_out, utr5_out, by_transc
         file name for output bedfile
     :param utr5_out: str
         file name for output bedfile
+    :param by_transcript: bool
+        if True, return all UTR regions, regardless (every UTR in every transcript is reported)
+        if False, return all UTR regions as a merged region according to gene
+        (merged, unoverlapping UTR region is reported for every gene)
+
     :return: 
     """
     five_prime_utr_features = []

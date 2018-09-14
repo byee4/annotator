@@ -5,6 +5,17 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+## [0.0.12] - 2018-09-14
+### Added
+- added example priority text files to datasets/
+
+## [0.0.11] - 2018-06-26
+### Added
+- [miRNA] as a distinct noncoding transcript type as default to classify_transcript_type()
+
+### Changed
+- Changed the priority to prioritize miRNA and noncoding exons over introns.
+
 ## [0.0.10] - 2018-03-25
 ### Added
 - create_AS_STRUCTURE creates AS_STRUCTURE files to be used with clipper
