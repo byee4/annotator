@@ -400,8 +400,8 @@ def create_region_bedfiles(
 
     # Creates the prox and dist intron regions
     if proxintron_out is not None or distintron_out is not None or allintron_out is not None:
-        exons_dict = af.get_all_exons_dict(db, keys['transcript_id'])
-        transcripts_dict = af.get_all_transcripts_dict(db, keys[
+        exons_dict = af.get_all_exons_dict(db, keys['exon'], keys['transcript_id'])
+        transcripts_dict = af.get_all_transcripts_dict(db, keys['exon'], keys[
             'transcript_id'])
         create_intron_region_bedfiles(
             db, exons_dict, transcripts_dict, keys,
