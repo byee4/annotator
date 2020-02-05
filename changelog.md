@@ -5,6 +5,14 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+## [0.0.14] - 2020-02-05
+### Fixed
+- fixed most_upstream_downstream_positions() and get_longest_transcripts() which did not have python3 compatibility (iteritems -> future.utils.iteritems)
+
+## [0.0.13] - 2019-02-25
+### Fixed
+- fixed a bug in create_region_bedfiles that was incorrectly passing arguments to get_all_exons_dict()
+
 ## [0.0.12] - 2018-09-14
 ### Added
 - added example priority text files to datasets/

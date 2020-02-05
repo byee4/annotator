@@ -4,6 +4,7 @@ import gffutils
 import sys
 import pybedtools
 from collections import defaultdict
+from future.utils import iteritems
 
 MAXVAL = 1000000000
 MINVAL = 0
@@ -16,12 +17,24 @@ def get_keys(species):
     Defaults to gencode standard for hg19/mm9/mm10/hg38
 
     :param species: string
-        either one of: 'hg19','mm10','ce11','mm9','hg38'
+        either one of: 'hg19_gencode','mm10','ce11','mm9','hg38'
     :return:
     """
-
-    if species == 'ce10':
-        print("species is {}".format(species))
+    print("species is {}".format(species))
+    if species == 'hg19_ensembl':
+        cds_key = 'CDS'
+        utr3_key = 'three_prime_utr'
+        utr5_key = 'five_prime_utr'
+        utr_key = None
+        gene_key = 'gene'
+        gene_name_key = 'gene_name'
+        transcript_key = 'transcript'
+        transcript_id_key = 'transcript_id'
+        type_key = 'transcript_biotype'
+        exon_key = 'exon'
+        gene_id_key = 'gene_id'
+        gene_type_key = 'gene_biotype'
+    elif species == 'ce10':
         cds_key = 'CDS'
         utr3_key = None # 'three_prime_UTR'
         utr5_key = None # 'five_prime_UTR'
@@ -35,7 +48,6 @@ def get_keys(species):
         gene_id_key = 'gene_id'
         gene_type_key = 'gene_biotype'
     elif species == 'ce11':
-        print("species is {}".format(species))
         cds_key = 'CDS'
         utr3_key = 'three_prime_utr'
         utr5_key = 'five_prime_utr'
@@ -49,7 +61,6 @@ def get_keys(species):
         gene_id_key = 'gene_id'
         gene_type_key = 'gene_biotype'
     else:
-        print("species is {}".format(species))
         cds_key = 'CDS'
         utr3_key = None  #
         utr5_key = None  # in human/mice, this key doesn't exist
@@ -105,7 +116,7 @@ def get_longest_transcripts(genes_dict, transcripts_dict):
     Returns a dictionary of genes : longest_transcript
     """
     longest_genes_dict = defaultdict(dict)
-    for gene, transcripts in genes_dict.iteritems():
+    for gene, transcripts in iteritems(genes_dict):
         max_transcript_len = -1
         max_transcript = ""
         for transcript in transcripts:
@@ -123,7 +134,7 @@ def most_upstream_downstream_positions(genes_dict, transcripts_dict):
     Returns a dictionary of genes : 
     """
     d = defaultdict(dict)
-    for gene, transcripts in genes_dict.iteritems():
+    for gene, transcripts in iteritems(genes_dict):
         min_transcript_pos = 1000000000    # as long as we don't have any chromosomes larger than 1 billion
         max_transcript_pos = -1
         for transcript in transcripts:
@@ -291,17 +302,19 @@ def classify_utr(utr_feature, cds_dict):
     five_prime_utr = False
 
     for transcript_id in utr_feature.attributes['transcript_id']:
-        if utr_feature.strand == '+':
-            if cds_dict[transcript_id]['low'] > utr_feature.end:
-                five_prime_utr = True
-            if cds_dict[transcript_id]['hi'] < utr_feature.start + 1:
-                three_prime_utr = True
-        elif utr_feature.strand == '-':
-            if cds_dict[transcript_id]['low'] > utr_feature.end:
-                three_prime_utr = True
-            if cds_dict[transcript_id]['hi'] < utr_feature.start + 1:
-                five_prime_utr = True
-
+        try:
+            if utr_feature.strand == '+':
+                if cds_dict[transcript_id]['low'] > utr_feature.end:
+                    five_prime_utr = True
+                if cds_dict[transcript_id]['hi'] < utr_feature.start + 1:
+                    three_prime_utr = True
+            elif utr_feature.strand == '-':
+                if cds_dict[transcript_id]['low'] > utr_feature.end:
+                    three_prime_utr = True
+                if cds_dict[transcript_id]['hi'] < utr_feature.start + 1:
+                    five_prime_utr = True
+        except KeyError as e:
+            return 'unclassified_utr' # no CDS found for this transcript so cannot positionally assign utr
     if five_prime_utr:
         return '5utr'
         # return 'five_prime_utr'
