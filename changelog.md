@@ -5,6 +5,11 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+## [0.0.15] - 2021-01-15
+### Added
+- support for hg19_ensembl (which contains three_prime_utr and five_prime_utr features, unlike gencode
+- untested support for dm6 (untested for a collaborator). 
+
 ## [0.0.14] - 2020-02-05
 ### Fixed
 - fixed most_upstream_downstream_positions() and get_longest_transcripts() which did not have python3 compatibility (iteritems -> future.utils.iteritems)

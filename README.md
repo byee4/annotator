@@ -33,7 +33,7 @@ python setup.py install
 
 * WS257 canonical geneset with extra annotations for annotating upstream/downstream transcripts
 
-In theory any other db file (built from a GTF file) should work... but use at your own risk!!!
+Use at your own risk! Not all GTF files are of the same structure.
 
 # Annotator Example Usage:
 

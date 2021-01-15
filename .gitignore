@@ -104,3 +104,8 @@ ENV/
 
 # pycharm
 .idea/
+
+# big folders to ignore
+datasets/
+examples/
+tests/

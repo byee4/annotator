@@ -60,6 +60,19 @@ def get_keys(species):
         exon_key = 'exon'
         gene_id_key = 'gene_id'
         gene_type_key = 'gene_biotype'
+    elif species == 'dm6_genbank':
+        cds_key = 'Genbank CDS'
+        utr3_key = None
+        utr5_key = None
+        utr_key = None
+        gene_key = 'Genbank gene'
+        gene_name_key = 'gene'
+        transcript_key = 'transcript_id'
+        transcript_id_key = 'transcript_id'
+        type_key = 'gene_biotype'
+        exon_key = 'Genbank exon'
+        gene_id_key = 'gene_id'
+        gene_type_key = 'gene_biotype'
     else:
         cds_key = 'CDS'
         utr3_key = None  #
@@ -135,7 +148,7 @@ def most_upstream_downstream_positions(genes_dict, transcripts_dict):
     """
     d = defaultdict(dict)
     for gene, transcripts in iteritems(genes_dict):
-        min_transcript_pos = 1000000000    # as long as we don't have any chromosomes larger than 1 billion
+        min_transcript_pos = 1000000000    # as long as we don't have any chromosomes larger than 1 billion... no support for axolotls!
         max_transcript_pos = -1
         for transcript in transcripts:
             if transcripts_dict[transcript]['end'] > max_transcript_pos:

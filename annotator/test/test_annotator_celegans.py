@@ -1,17 +1,16 @@
 #!/usr/bin/env python
 
 from annotator import annotate_bed as a
-from annotator import annotate
+from annotator import annotation_functions as af
+from annotator import annotator
 import gffutils
 
 CHROMS = ['III']
 DB_FILE = 'test/data/c_elegans.PRJNA13758.WS257.canonical_geneset.chrIII.25000.gtf.db'
 SPECIES = 'ce11'
 
-geneid_to_name_dict, exons_dict, \
-transcripts_dict, cds_dict, features_dict, \
-cds_key, utr3_key, utr5_key, utr_key, \
-gene_name_key, transcript_id_key, type_key = a.create_definitions(
+exons_dict, \
+transcripts_dict, cds_dict, features_dict, keys = a.create_definitions(
     DB_FILE, CHROMS, SPECIES
 )
 
@@ -22,10 +21,10 @@ def get_featuretype(st):
     return st.split(':')[4]
 
 def gene_priority_1():
-    return annotate.parse_annotation_priority('priority.txt')
+    return annotator.parse_annotation_priority('priority.txt')
 
 def transcript_priority_1():
-    return annotate.parse_annotation_priority('priority.txt')
+    return annotator.parse_annotation_priority('priority.txt')
 
 def get_3utr_features_1():
     utr3_features = []
@@ -70,14 +69,12 @@ def test_annotate_prioritize_cds_1():
     stranded = True,
     # transcript_priority = transcript_priority_1()
     # gene_priority = gene_priority_1()
-    transcript_id_key = 'transcript_id'
-    type_key = 'transcript_biotype'
 
     chrom, start, end, name, score, strand, \
     gene, rname, region, annotation = a.annotate(
         qchrom, qstart, qstop, qname, qscore, qstrand,
         stranded, region_priority, region_priority,
-        features_dict, cds_dict, transcript_id_key, type_key
+        features_dict, cds_dict, keys
     )
     assert rname == 'H10E21.3a,H10E21.3b'
     assert region == 'CDS'
@@ -106,7 +103,7 @@ def test_annotate_prioritize_cds_2():
     gene, rname, region, annotation = a.annotate(
         qchrom, qstart, qstop, qname, qscore, qstrand,
         stranded, region_priority, region_priority,
-        features_dict, cds_dict, transcript_id_key, type_key
+        features_dict, cds_dict, keys
     )
     assert rname == 'H10E21.3a,H10E21.3b'
     assert region == 'CDS'
@@ -135,7 +132,7 @@ def test_annotate_prioritize_1():
     gene, rname, region, annotation = a.annotate(
         qchrom, qstart, qstop, qname, qscore, qstrand,
         stranded, region_priority, region_priority,
-        features_dict, cds_dict, transcript_id_key, type_key
+        features_dict, cds_dict, keys
     )
     print(annotation)
     assert rname == 'H10E21.1b'
@@ -165,7 +162,7 @@ def test_annotate_prioritize_2():
     gene, rname, region, annotation = a.annotate(
         qchrom, qstart, qstop, qname, qscore, qstrand,
         stranded, region_priority, region_priority,
-        features_dict, cds_dict, transcript_id_key, type_key
+        features_dict, cds_dict, keys
     )
     print(annotation)
     assert rname == 'H10E21.1a'
@@ -195,7 +192,7 @@ def test_annotate_prioritize_3():
     gene, rname, region, annotation = a.annotate(
         qchrom, qstart, qstop, qname, qscore, qstrand,
         stranded, region_priority, region_priority,
-        features_dict, cds_dict, transcript_id_key, type_key
+        features_dict, cds_dict, keys
     )
     print(annotation)
     assert rname == 'H10E21.1a' or rname == 'H10E21.1b'  # don't know which transcript is returned, should clear that up
@@ -226,7 +223,7 @@ def test_annotate_prioritize_4():
     gene, rname, region, annotation = a.annotate(
         qchrom, qstart, qstop, qname, qscore, qstrand,
         stranded, region_priority, region_priority,
-        features_dict, cds_dict, transcript_id_key, type_key
+        features_dict, cds_dict, keys
     )
     print(annotation)
     assert rname == 'H10E21.1a' or rname == 'H10E21.1b'  # don't know which transcript is returned, should clear that up
