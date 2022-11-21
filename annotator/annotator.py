@@ -139,11 +139,11 @@ def main():
         default=False
     )
     parser.add_argument(
-        "--species",
-        dest="species",
+        "--format",
+        dest="gtf_format",
         required=False,
-        help='sets default GTF nomenclature to either [ce11] or [hg19/mm10]',
-        default='hg19'
+        help='sets default GTF nomenclature to either [gencode] or ensembl/ncbi',
+        default='gencode'
     )
     parser.add_argument(
         "--limit-chroms-to",
@@ -165,7 +165,7 @@ def main():
     gtfdb_file = args.gtfdb
     chroms = args.limit_chroms_to
     unstranded = args.unstranded
-    species = args.species
+    gtf_format = args.gtf_format
     append_chr = args.append_chr
     cores = 1  # TODO: implement later - unnecessary now
     fuzzy = 0  # TODO: implement later - unnecessary now
@@ -190,7 +190,7 @@ def main():
     ### Call main function
     annotate_bed.annotate_bed(
         gtfdb_file, input_bed_files, output_annotated_files, stranded, chroms,
-        transcript_priority, gene_priority, species, append_chr,
+        transcript_priority, gene_priority, gtf_format, append_chr,
         fuzzy, cores
     )
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-gene_name2id.py \
+gene_name2id \
 --input inputs/shsap-holistic1.txt \
 --gffdb inputs/gencode.v19.annotation.gtf.db \
 --name_col Gene \

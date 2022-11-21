@@ -50,7 +50,7 @@ def do_cprofile(func):
     return profiled_func
 
 
-def create_definitions(db_file, chroms=[], species='hg19',
+def create_definitions(db_file, chroms=[], gtf_format='gencode',
                        append_chr=False, fuzzy=0):
     """
     This method creates definitions and populates dictionaries to be used
@@ -58,13 +58,14 @@ def create_definitions(db_file, chroms=[], species='hg19',
 
     :param db_file:
     :param chroms:
-    :param species:
+    :param gtf_format: basestring
+    'gencode', 'ensembl', or 'refseq' to specify the GTF annotation syntax.
     :param append_chr:
     :param fuzzy:
     :return:
     """
 
-    keys = af.get_keys(species)
+    keys = af.get_keys(gtf_format)
 
     db = gffutils.FeatureDB(db_file)
     featuretypes = [x.lower() for x in list(db.featuretypes())]
@@ -828,7 +829,7 @@ def annotate_bed_single_core(line, stranded, transcript_priority,
 
 
 def annotate_bed(db_file, bed_files, out_files, stranded, chroms,
-             transcript_priority, gene_priority, species, append_chr, fuzzy,
+             transcript_priority, gene_priority, gtf_format, append_chr, fuzzy,
              cores):
     """
     Given a bed6 file, return the file with an extra column containing
@@ -842,8 +843,8 @@ def annotate_bed(db_file, bed_files, out_files, stranded, chroms,
         list of output file names
     :param chroms: list
         list of strings pertaining to chromosomes we want to use to annotate.
-    :param species: basestring
-        'hg19' or 'mm10' or 'ce11' to specify the GTF annotation syntax.
+    :param gtf_format: basestring
+        'gencode', 'ensembl', or 'refseq' to specify the GTF annotation syntax.
     :param append_chr: boolean
         True if we need to add 'chr' to the database annotations
         For example, wormbase/Ensembl annotations use I/II/1/2/etc.
@@ -853,7 +854,7 @@ def annotate_bed(db_file, bed_files, out_files, stranded, chroms,
 
     exons_dict, transcripts_dict, \
     cds_dict, features_dict, keys = create_definitions(
-        db_file, chroms=chroms, species=species, append_chr=append_chr,
+        db_file, chroms=chroms, gtf_format=gtf_format, append_chr=append_chr,
         fuzzy=fuzzy
     )
     for n in range(len(bed_files)):

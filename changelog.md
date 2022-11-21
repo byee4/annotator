@@ -5,6 +5,11 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+
+## [0.1.0] - 2022-11-21
+### Changed
+- deprecated --species in favor of --format
+
 ## [0.0.15] - 2021-01-15
 ### Added
 - support for hg19_ensembl (which contains three_prime_utr and five_prime_utr features, unlike gencode

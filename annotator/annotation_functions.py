@@ -10,18 +10,18 @@ MAXVAL = 1000000000
 MINVAL = 0
 
 
-def get_keys(species):
+def get_keys(gtf_format):
     """
     Describes the language for each kind of gtf file 
     (usually different between sources).
     Defaults to gencode standard for hg19/mm9/mm10/hg38
 
-    :param species: string
-        either one of: 'hg19_gencode','mm10','ce11','mm9','hg38'
+    :param gtf_format: string
+        either one of: ['gencode'],'ensembl','wormbase','genbank','refseq'
     :return:
     """
-    print("species is {}".format(species))
-    if species == 'hg19_ensembl':
+    print("gtf_format (species is deprecated) is {}".format(gtf_format))
+    if gtf_format == 'ensembl':
         cds_key = 'CDS'
         utr3_key = 'three_prime_utr'
         utr5_key = 'five_prime_utr'
@@ -34,7 +34,7 @@ def get_keys(species):
         exon_key = 'exon'
         gene_id_key = 'gene_id'
         gene_type_key = 'gene_biotype'
-    elif species == 'ce10':
+    elif gtf_format == 'ce10':
         cds_key = 'CDS'
         utr3_key = None # 'three_prime_UTR'
         utr5_key = None # 'five_prime_UTR'
@@ -47,7 +47,7 @@ def get_keys(species):
         exon_key = 'exon'
         gene_id_key = 'gene_id'
         gene_type_key = 'gene_biotype'
-    elif species == 'ce11':
+    elif gtf_format == 'ce11' or gtf_format == 'wormbase':
         cds_key = 'CDS'
         utr3_key = 'three_prime_utr'
         utr5_key = 'five_prime_utr'
@@ -60,7 +60,7 @@ def get_keys(species):
         exon_key = 'exon'
         gene_id_key = 'gene_id'
         gene_type_key = 'gene_biotype'
-    elif species == 'dm6_genbank':
+    elif gtf_format == 'dm6_genbank' or gtf_format == 'genbank':
         cds_key = 'Genbank CDS'
         utr3_key = None
         utr5_key = None
@@ -73,7 +73,20 @@ def get_keys(species):
         exon_key = 'Genbank exon'
         gene_id_key = 'gene_id'
         gene_type_key = 'gene_biotype'
-    else:
+    elif gtf_format == 'refseq':
+        cds_key = 'CDS'
+        utr3_key = None
+        utr5_key = None
+        utr_key = None
+        gene_key = 'gene'
+        gene_name_key = 'gene'
+        transcript_key = 'ID'
+        transcript_id_key = 'ID'
+        type_key = 'gene_biotype'
+        exon_key = 'exon'
+        gene_id_key = 'GeneID'
+        gene_type_key = 'gene_biotype'
+    else:  # default to gencode
         cds_key = 'CDS'
         utr3_key = None  #
         utr5_key = None  # in human/mice, this key doesn't exist

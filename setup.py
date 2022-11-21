@@ -7,7 +7,7 @@ except ImportError:
 
 setup(
     name='annotator',
-    version='0.0.13',
+    version='0.1.0',
     url='github.com/byee4/annotator',
     license='',
     author='brianyee',
