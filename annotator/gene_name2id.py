@@ -3,18 +3,18 @@
 # Converts a file that is labeled with gene names into one that is labeled
 # with gene ids
 
-from __future__ import print_function
-from __future__ import division
-
-# uncomment from this compatibility import list, as py3/py2 support progresses
-
-from __future__  import absolute_import
-from __future__  import unicode_literals
-from future import standard_library
-# from future.builtins import builtins
-from future.builtins import utils
-from future.utils import raise_with_traceback
-from future.utils import iteritems
+# from __future__ import print_function
+# from __future__ import division
+#
+# # uncomment from this compatibility import list, as py3/py2 support progresses
+#
+# from __future__  import absolute_import
+# from __future__  import unicode_literals
+# from future import standard_library
+# # from future.builtins import builtins
+# from future.builtins import utils
+# from future.utils import raise_with_traceback
+# from future.utils import iteritems
 
 from argparse import ArgumentParser
 import sys
@@ -32,10 +32,12 @@ def get_id_from_namerow(row, name2id, name_col):
         print('Cant find {} in the database!'.format(str(row[name_col])))
         return ''
 
+
 def add_id_to_dataframe(df, name2id_dict, name_col):
     """ adds id values to pandas dataframe """
     assert 'gene id' not in df.columns
-    df['gene id'] = df.apply(get_id_from_namerow, args=[name2id_dict, name_col], axis=1)
+    df['gene id'] = df.apply(get_id_from_namerow, args=[
+                             name2id_dict, name_col], axis=1)
     return df
 
 
@@ -43,14 +45,14 @@ def build_name_to_id_dict(gffdb_file, custom_file):
     """
     Returns {gene_name:gene_id} dictionary.
     Names with more than 1 associated ID will be appended, delimited by |.
-    
+
     :param gffdb_file: string
         path of the gtfdb.
         Database must contain:
         'gene' in featuretype field
         'gene_name' in feature.attributes.chr19_keys()
         'gene_id' in feature.attributes.chr19_keys()
-        
+
     :return name2id_dict: dict
         {gene_name:gene_id[]}
     """
@@ -72,7 +74,8 @@ def build_name_to_id_dict(gffdb_file, custom_file):
             with open(custom_file, 'r') as f:
                 for line in f:
                     if not line.startswith('#'):  # comment chars
-                        gene_id, gene_name = line.rstrip('\n').split('\t')  # ignore other columns
+                        gene_id, gene_name = line.rstrip(
+                            '\n').split('\t')  # ignore other columns
                         name2id[gene_name].append(gene_id)
         except Exception as e:
             print(e)
@@ -84,7 +87,7 @@ def read_and_append_id(in_file, sep, name_col, gffdb_file, custom_file, delete_o
     """
     Reads in a delimited file with miRNA names in at least one column
     Returns dataframe containing matching miRNA precursor ids.
-    
+
     :param in_file: string
         input delimited file
     :param sep: string
@@ -187,6 +190,9 @@ def main():
     custom_file = args.custom
     delete_original_column = args.delete_original_column
 
-    convert(in_file, sep, name_col, out_file, gffdb_file, custom_file, delete_original_column)
+    convert(in_file, sep, name_col, out_file, gffdb_file,
+            custom_file, delete_original_column)
+
+
 if __name__ == "__main__":
     main()

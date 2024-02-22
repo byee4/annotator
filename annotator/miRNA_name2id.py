@@ -5,18 +5,18 @@
 
 # these two are really a minimum
 
-from __future__ import print_function
-from __future__ import division
-
-# uncomment from this compatibility import list, as py3/py2 support progresses
-
-from __future__  import absolute_import
-from __future__  import unicode_literals
-from future import standard_library
-# from future.builtins import builtins
-from future.builtins import utils
-from future.utils import raise_with_traceback
-from future.utils import iteritems
+# from __future__ import print_function
+# from __future__ import division
+#
+# # uncomment from this compatibility import list, as py3/py2 support progresses
+#
+# from __future__  import absolute_import
+# from __future__  import unicode_literals
+# from future import standard_library
+# # from future.builtins import builtins
+# from future.builtins import utils
+# from future.utils import raise_with_traceback
+# from future.utils import iteritems
 
 from argparse import ArgumentParser
 import sys
@@ -47,13 +47,15 @@ def get_mature_id_from_idrow(row, precursor2mature, name_col):
 def add_precursor_id_to_dataframe(df, name2id_dict, name_col):
     """ adds id values to pandas dataframe """
     assert 'miRNA id' not in df.columns
-    df['miRNA id'] = df.apply(get_precursor_id_from_namerow, args=[name2id_dict, name_col], axis=1)
+    df['miRNA id'] = df.apply(get_precursor_id_from_namerow, args=[
+                              name2id_dict, name_col], axis=1)
     return df
 
 
 def add_mature_id_to_dataframe(df, precursor2mature_dict, name_col):
     print(df.head())
-    df['mature'] = df.apply(get_mature_id_from_idrow, args=[precursor2mature_dict, name_col], axis=1)
+    df['mature'] = df.apply(get_mature_id_from_idrow, args=[
+                            precursor2mature_dict, name_col], axis=1)
     return df
 
 
@@ -97,14 +99,14 @@ def build_name_to_precursor_id_dict(gffdb_file, custom_file):
     """
     Returns {name:id} dictionary. 
     Names with more than 1 associated ID will be appended, delimited by |.
-    
+
     :param gffdb_file: string
         path of the gffdb.
         Database must contain:
         'miRNA_primary_transcript' in featuretype field
         'Name' in feature.attributes.chr19_keys()
         'ID' in feature.attributes.chr19_keys()
-        
+
     :return name2id_dict: dict
         {name:id[]}
     """
@@ -125,7 +127,8 @@ def build_name_to_precursor_id_dict(gffdb_file, custom_file):
             with open(custom_file, 'r') as f:
                 for line in f:
                     if not line.startswith('#'):  # comment chars
-                        id, name = line.rstrip('\n').split('\t')[:2]  # ignore other columns
+                        id, name = line.rstrip('\n').split(
+                            '\t')[:2]  # ignore other columns
                         precursor_name2id[name].append(id)
         except Exception as e:
             print(e)
@@ -137,7 +140,7 @@ def read_and_append_id(in_file, sep, name_col, gffdb_file, custom_file, add_matu
     """
     Reads in a delimited file with miRNA names in at least one column
     Returns dataframe containing matching miRNA precursor ids.
-    
+
     :param in_file: string
         input delimited file
     :param sep: string
@@ -153,11 +156,13 @@ def read_and_append_id(in_file, sep, name_col, gffdb_file, custom_file, add_matu
     """
     df = pd.read_table(in_file, sep=sep)
 
-    precursor_name2id_dict = build_name_to_precursor_id_dict(gffdb_file, custom_file)
+    precursor_name2id_dict = build_name_to_precursor_id_dict(
+        gffdb_file, custom_file)
     df = add_precursor_id_to_dataframe(df, precursor_name2id_dict, name_col)
 
     if add_mature:
-        precursor2mature_dict = build_precursor_id_to_mature_id_dict(gffdb_file, custom_file)
+        precursor2mature_dict = build_precursor_id_to_mature_id_dict(
+            gffdb_file, custom_file)
         df = add_mature_id_to_dataframe(df, precursor2mature_dict, 'miRNA id')
 
     if delete_original_column:
@@ -245,6 +250,9 @@ def main():
     custom_file = args.custom
     add_mature = args.add_mature
 
-    convert(in_file, sep, name_col, out_file, gffdb_file, custom_file, add_mature)
+    convert(in_file, sep, name_col, out_file,
+            gffdb_file, custom_file, add_mature)
+
+
 if __name__ == "__main__":
     main()

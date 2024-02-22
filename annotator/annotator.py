@@ -4,63 +4,63 @@
 
 # these two are really a minimum
 
-from __future__ import print_function
-from __future__ import division
+# from __future__ import print_function
+# from __future__ import division
 
 # uncomment from this compatibility import list, as py3/py2 support progresses
 
-from __future__  import absolute_import
-from __future__  import unicode_literals
-from future import standard_library
-# from future.builtins import builtins
-from future.builtins import utils
-from future.utils import raise_with_traceback
-from future.utils import iteritems
+# from __future__  import absolute_import
+# from __future__  import unicode_literals
+# from future import standard_library
+# # from future.builtins import builtins
+# from future.builtins import utils
+# from future.utils import raise_with_traceback
+# from future.utils import iteritems
 
 from argparse import ArgumentParser
 from . import annotate_bed
 import sys
 
 TRANSCRIPT_PRIORITY = [
-    ['miRNA','exon'],
-    ['protein_coding','CDS'],
-    ['protein_coding','start_codon'],
-    ['protein_coding','stop_codon'],
-    ['protein_coding','3utr'],
-    ['protein_coding','three_prime_utr'],
+    ['miRNA', 'exon'],
+    ['protein_coding', 'CDS'],
+    ['protein_coding', 'start_codon'],
+    ['protein_coding', 'stop_codon'],
+    ['protein_coding', '3utr'],
+    ['protein_coding', 'three_prime_utr'],
     ['protein_coding', '5utr'],
-    ['protein_coding','five_prime_utr'],
+    ['protein_coding', 'five_prime_utr'],
     ['protein_coding', 'unclassified_utr'],
-    ['protein_coding','proxintron500'],
-    ['protein_coding','distintron500'],
+    ['protein_coding', 'proxintron500'],
+    ['protein_coding', 'distintron500'],
     ['non_coding', 'exon'],
-    ['protein_coding','Selenocysteine'],
-    ['non_coding','proxintron500'],
-    ['non_coding','distintron500'],
-    ['non_coding','transcript'],
-    ['non_coding','gene'],
-    ['non_coding','Selenocysteine'],
+    ['protein_coding', 'Selenocysteine'],
+    ['non_coding', 'proxintron500'],
+    ['non_coding', 'distintron500'],
+    ['non_coding', 'transcript'],
+    ['non_coding', 'gene'],
+    ['non_coding', 'Selenocysteine'],
 ]
 
 GENE_PRIORITY = [
-    ['miRNA','exon'],
-    ['protein_coding','CDS'],
-    ['protein_coding','start_codon'],
-    ['protein_coding','stop_codon'],
-    ['protein_coding','3utr'],
-    ['protein_coding','three_prime_utr'],
+    ['miRNA', 'exon'],
+    ['protein_coding', 'CDS'],
+    ['protein_coding', 'start_codon'],
+    ['protein_coding', 'stop_codon'],
+    ['protein_coding', '3utr'],
+    ['protein_coding', 'three_prime_utr'],
     ['protein_coding', '5utr'],
-    ['protein_coding','five_prime_utr'],
-    ['protein_coding','unclassified_utr'],
+    ['protein_coding', 'five_prime_utr'],
+    ['protein_coding', 'unclassified_utr'],
     ['non_coding', 'exon'],
-    ['protein_coding','proxintron500'],
+    ['protein_coding', 'proxintron500'],
     ['non_coding', 'proxintron500'],
-    ['protein_coding','distintron500'],
+    ['protein_coding', 'distintron500'],
     ['non_coding', 'distintron500'],
     ['protein_coding', 'Selenocysteine'],
-    ['non_coding','transcript'],
-    ['non_coding','gene'],
-    ['non_coding','Selenocysteine'],
+    ['non_coding', 'transcript'],
+    ['non_coding', 'gene'],
+    ['non_coding', 'Selenocysteine'],
 ]
 
 
@@ -78,6 +78,7 @@ def parse_annotation_priority(priority_file, delim=','):
             line = line.rstrip().split(delim)
             priority.append([line[0], line[1]])
     return priority
+
 
 def main():
     # Setup argument parser
@@ -170,15 +171,16 @@ def main():
     cores = 1  # TODO: implement later - unnecessary now
     fuzzy = 0  # TODO: implement later - unnecessary now
 
-    ### Flipping this terminology to make it easier to understand
+    # Flipping this terminology to make it easier to understand
     if unstranded:
-        stranded=False
+        stranded = False
     else:
-        stranded=True
+        stranded = True
 
-    ### If appropriate priorities are unassigned, assign to defaults
+    # If appropriate priorities are unassigned, assign to defaults
     if args.transcript_priority_file is not None:
-        transcript_priority = parse_annotation_priority(args.transcript_priority_file)
+        transcript_priority = parse_annotation_priority(
+            args.transcript_priority_file)
     else:
         transcript_priority = TRANSCRIPT_PRIORITY
 
@@ -187,12 +189,13 @@ def main():
     else:
         gene_priority = GENE_PRIORITY
 
-    ### Call main function
+    # Call main function
     annotate_bed.annotate_bed(
         gtfdb_file, input_bed_files, output_annotated_files, stranded, chroms,
         transcript_priority, gene_priority, gtf_format, append_chr,
         fuzzy, cores
     )
+
 
 if __name__ == "__main__":
     main()

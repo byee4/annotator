@@ -4,8 +4,8 @@
 
 # these two are really a minimum
 
-from __future__ import print_function
-from __future__ import division
+# from __future__ import print_function
+# from __future__ import division
 
 # uncomment from this compatibility import list, as py3/py2 support progresses
 
@@ -15,7 +15,7 @@ from __future__ import division
 # from future.builtins import builtins
 # from future.builtins import utils
 # from future.utils import raise_with_traceback
-from future.utils import iteritems
+# from future.utils import iteritems
 
 # import pybedtools
 from tqdm import trange
@@ -152,7 +152,7 @@ def hash_features(db, chromosomes, append_chr, fuzzy,
             introns = []
             # if we see at least one intron, we assume introns are annotated!
             if element.featuretype == 'transcript' and \
-                            'intron' not in featuretypes:
+                    'intron' not in featuretypes:
                 for transcript_id in element.attributes[transcript_id_key]:
                     exons = exons_dict[transcript_id]
                     transcript = transcripts_dict[transcript_id]
@@ -175,9 +175,10 @@ def hash_features(db, chromosomes, append_chr, fuzzy,
                     #  TODO: figure out a way to remove deepcopy requirement
                     intron_interval = pybedtools.create_interval_from_list(
                         [element.chrom, str(int(intron['start'])-1), intron['end'],  # turn 1 based into 0 based
-                        'intron', str(element.score), element.strand]
+                         'intron', str(element.score), element.strand]
                     )
-                    proxdist_dict = af.get_proxdist_from_intron(intron_interval)
+                    proxdist_dict = af.get_proxdist_from_intron(
+                        intron_interval)
                     for prox in proxdist_dict['prox']:
                         proxintron_feature = copy.deepcopy(element)
                         proxintron_feature.start = prox.start + 1
@@ -219,14 +220,10 @@ def get_all_overlapping_features_from_query_stranded(
     features = []
     append = features.append
 
-
-
     start_key = int(qstart / HASH_VAL)
     end_key = int(qend / HASH_VAL)
 
-
     qstart = qstart + 1  # change 0-based bed to 1-based gff
-
 
     for i in range(start_key, end_key + 1):
         for feature in features_dict[chrom, i, strand]:
@@ -410,7 +407,8 @@ def return_highest_priority_feature(formatted_features, priority):
     for feature_string in formatted_features:
         # print("FEATURE STRING: {}".format(feature_string))
         transcript, start, end, strand, feature_type, gene_id, \
-        gene_name, transcript_type_list, gene_type_list, overlap = feature_string.split(':')
+            gene_name, transcript_type_list, gene_type_list, overlap = feature_string.split(
+                ':')
         transcript_type_list = transcript_type_list.split(',')
         for transcript_type, gene_type in zip(transcript_type_list, gene_type_list):
             combined_dict[
@@ -428,12 +426,12 @@ def return_highest_priority_feature(formatted_features, priority):
     # print("COMBINED DICT STEP 2: {}".format(combined_dict))
     try:
         # append nonexisting regions to the end of the priority list
-        for key, _ in iteritems(combined_dict):
+        for key, _ in combined_dict.items():
             if list(key) not in priority:
                 priority.append(list(key))
         # print("PRIORITY: ",priority)
         combined_dict = sorted(  # sort based on priority list
-            iteritems(combined_dict),
+            combined_dict.items(),
             key=lambda x: priority.index([x[0][0], x[0][1]])
         )
         # print("COMBINED DICT STEP 3: {}".format(combined_dict))
@@ -484,7 +482,7 @@ def prioritize_genes(unique_genes, gene_priority):
     """
     Given a dictionary of genes and gene type priority, return 
     the highest priority gene whose feature type is the highest priority.
-    
+
     :param unique_genes: 
     :param gene_priority: 
     :return: 
@@ -492,7 +490,7 @@ def prioritize_genes(unique_genes, gene_priority):
     # print("UNIQUE GENES", unique_genes)
     final_transcripts = []
     final_transcripts_append = final_transcripts.append
-    for gene, transcripts in iteritems(unique_genes):
+    for gene, transcripts in unique_genes.items():
         for transcript in transcripts:
             final_transcripts_append(transcript)
 
@@ -584,7 +582,6 @@ def annotate(
         chrom, start, end, name, score, strand,
         stranded, transcript_priority, gene_priority,
         features_dict, cds_dict, keys):
-
     """
     Given position parameters, return the annotation string.
 
@@ -624,10 +621,10 @@ def annotate(
     # If we find no overlapping features, return 'intergenic'
     if len(transcript.keys()) == 0:
         return chrom, start, end, name, score, strand, \
-               'intergenic', 'intergenic', \
-               'intergenic', 'intergenic'
+            'intergenic', 'intergenic', \
+            'intergenic', 'intergenic'
     # Generate an annotation string
-    for transcript, features in iteritems(transcript):
+    for transcript, features in transcript.items():
         for feature in features:
             append_count += 1
             # if we only have UTR, specify what kind of UTR (3' or 5').
@@ -699,7 +696,7 @@ def annotate(
             if rname != current_rname:
                 rname = rname + ',' + current_rname
     return chrom, start, end, name, score, strand, \
-           gene , rname, region, to_append
+        gene, rname, region, to_append
 
 
 def split_bed_interval(bed_string):
@@ -829,8 +826,8 @@ def annotate_bed_single_core(line, stranded, transcript_priority,
 
 
 def annotate_bed(db_file, bed_files, out_files, stranded, chroms,
-             transcript_priority, gene_priority, gtf_format, append_chr, fuzzy,
-             cores):
+                 transcript_priority, gene_priority, gtf_format, append_chr, fuzzy,
+                 cores):
     """
     Given a bed6 file, return the file with an extra column containing
     '|' delimited gene annotations
@@ -853,10 +850,10 @@ def annotate_bed(db_file, bed_files, out_files, stranded, chroms,
     """
 
     exons_dict, transcripts_dict, \
-    cds_dict, features_dict, keys = create_definitions(
-        db_file, chroms=chroms, gtf_format=gtf_format, append_chr=append_chr,
-        fuzzy=fuzzy
-    )
+        cds_dict, features_dict, keys = create_definitions(
+            db_file, chroms=chroms, gtf_format=gtf_format, append_chr=append_chr,
+            fuzzy=fuzzy
+        )
     for n in range(len(bed_files)):
         bed_file = bed_files[n]
         out_file = out_files[n]

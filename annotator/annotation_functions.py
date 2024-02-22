@@ -4,7 +4,7 @@ import gffutils
 import sys
 import pybedtools
 from collections import defaultdict
-from future.utils import iteritems
+# from future.utils import iteritems
 
 MAXVAL = 1000000000
 MINVAL = 0
@@ -36,8 +36,8 @@ def get_keys(gtf_format):
         gene_type_key = 'gene_biotype'
     elif gtf_format == 'ce10':
         cds_key = 'CDS'
-        utr3_key = None # 'three_prime_UTR'
-        utr5_key = None # 'five_prime_UTR'
+        utr3_key = None  # 'three_prime_UTR'
+        utr5_key = None  # 'five_prime_UTR'
         utr_key = 'UTR'
         gene_key = 'gene'
         gene_name_key = 'gene_name'
@@ -120,9 +120,9 @@ def get_keys(gtf_format):
 def get_gene_to_transcript_dict(db, gene_id_key, transcript_id_key):
     """
     Returns a gene: transcript dictionary. 
-    
+
     gene:[transcript1, transcript2]
-    
+
     :param db: gffutils.FeatureDB
     :param gene_id_key: string
     :param transcript_id_key: string
@@ -142,11 +142,12 @@ def get_longest_transcripts(genes_dict, transcripts_dict):
     Returns a dictionary of genes : longest_transcript
     """
     longest_genes_dict = defaultdict(dict)
-    for gene, transcripts in iteritems(genes_dict):
+    for gene, transcripts in genes_dict.items():
         max_transcript_len = -1
         max_transcript = ""
         for transcript in transcripts:
-            transcript_len = transcripts_dict[transcript]['end'] - transcripts_dict[transcript]['start']
+            transcript_len = transcripts_dict[transcript]['end'] - \
+                transcripts_dict[transcript]['start']
             if transcript_len > max_transcript_len:
                 max_transcript_len = transcript_len
                 max_transcript = transcript
@@ -160,8 +161,9 @@ def most_upstream_downstream_positions(genes_dict, transcripts_dict):
     Returns a dictionary of genes : 
     """
     d = defaultdict(dict)
-    for gene, transcripts in iteritems(genes_dict):
-        min_transcript_pos = 1000000000    # as long as we don't have any chromosomes larger than 1 billion... no support for axolotls!
+    for gene, transcripts in genes_dict.items():
+        # as long as we don't have any chromosomes larger than 1 billion... no support for axolotls!
+        min_transcript_pos = 1000000000
         max_transcript_pos = -1
         for transcript in transcripts:
             if transcripts_dict[transcript]['end'] > max_transcript_pos:
@@ -171,6 +173,7 @@ def most_upstream_downstream_positions(genes_dict, transcripts_dict):
 
         d[gene] = {'start': min_transcript_pos, 'end': max_transcript_pos}
     return d
+
 
 def get_premrna_lengths(gene_id, upstream_downstream):
     start = upstream_downstream[gene_id]['start']
@@ -185,7 +188,8 @@ def get_mrna_lengths(gene_id, exons_dict, genes_dict):
         for exon in exons_dict[transcript]:
             exons_list.append(pybedtools.create_interval_from_list(
                 [exon['chrom'],
-                 str(exon['start'] - 1),  # since we're converting to bedtool, use 0-based
+                 # since we're converting to bedtool, use 0-based
+                 str(exon['start'] - 1),
                  str(exon['end']),
                  transcript,
                  '0',
@@ -228,7 +232,7 @@ def get_all_exons_dict(db, exon_key, transcript_id_key):
             ...
         ]
     }.
-  
+
     :param db: gffutils.FeatureDB
     :param transcript_id_key: string
     :param exon_key: string
@@ -252,7 +256,7 @@ def get_all_exons_dict(db, exon_key, transcript_id_key):
 def get_all_transcripts_dict(db, transcript_key, transcript_id_key):
     """
     Returns dictionary of transcript_id:{'start':START, 'end':END}.
-  
+
     :param db: gffutils.FeatureDB
     :param transcript_key: string
     :param transcript_id_key: string
@@ -340,7 +344,8 @@ def classify_utr(utr_feature, cds_dict):
                 if cds_dict[transcript_id]['hi'] < utr_feature.start + 1:
                     five_prime_utr = True
         except KeyError as e:
-            return 'unclassified_utr' # no CDS found for this transcript so cannot positionally assign utr
+            # no CDS found for this transcript so cannot positionally assign utr
+            return 'unclassified_utr'
     if five_prime_utr:
         return '5utr'
         # return 'five_prime_utr'
@@ -372,7 +377,7 @@ def find_introns(transcript, exons):
             ...
         ]
     """
-    positions = [] # list of
+    positions = []  # list of
     introns = []
 
     pos_append = positions.append
@@ -418,7 +423,7 @@ def get_proxdist_from_intron(interval, distance=500):
         each proximal and distal intron region as values.
     """
 
-    d = distance * 2 # total distance
+    d = distance * 2  # total distance
 
     # if the region is less than 2x the distance, any point on
     # that region will be equal or less than an exon.

@@ -3,18 +3,18 @@
 # Calculates the average and total sizes of each region
 
 
-from __future__ import print_function
-from __future__ import division
-
-# uncomment from this compatibility import list, as py3/py2 support progresses
-
-from __future__  import absolute_import
-from __future__  import unicode_literals
-from future import standard_library
-# from future.builtins import builtins
-from future.builtins import utils
-from future.utils import raise_with_traceback
-from future.utils import iteritems
+# from __future__ import print_function
+# from __future__ import division
+#
+# # uncomment from this compatibility import list, as py3/py2 support progresses
+#
+# from __future__  import absolute_import
+# from __future__  import unicode_literals
+# from future import standard_library
+# # from future.builtins import builtins
+# from future.builtins import utils
+# from future.utils import raise_with_traceback
+# from future.utils import iteritems
 
 from argparse import ArgumentParser
 import sys
@@ -27,7 +27,7 @@ from collections import defaultdict
 def calculate_total_cds_length(db, keys):
     """
     Calculates the total length of all CDS features in a db
-    
+
     :param db: gffutils.FeatureDB
     :param keys: dict
         {'region':region defined in GTF}. Sets the naming scheme 
@@ -43,7 +43,8 @@ def calculate_total_cds_length(db, keys):
     # print('cds lengths (total): {}'.format(total_cds_feature_tx_lengths))
 
     ### This method counts only nonoverlapping CDS regions ###
-    cds = create_region_bedfiles.create_cds_region_bedfile(db, keys, None, True)
+    cds = create_region_bedfiles.create_cds_region_bedfile(
+        db, keys, None, True)
     cds = cds.sort()
     print('cds lengths (total): {}'.format(cds.total_coverage()))
     return cds.total_coverage()
@@ -52,7 +53,7 @@ def calculate_total_cds_length(db, keys):
 def calculate_avg_cds_length(db, keys):
     """
     Calculates the average length of CDS regions for each transcript.
-    
+
     :param db: gffutils.FeatureDB
     :param keys: dict
         {'region':region defined in GTF}. Sets the naming scheme 
@@ -65,13 +66,15 @@ def calculate_avg_cds_length(db, keys):
     # get all cds regions that belong to each transcript
     for cds_feature in db.features_of_type(keys['cds']):
         for transcript in cds_feature.attributes['transcript_id']:
-            cds_feature_tx_lengths[transcript].append(cds_feature.end - cds_feature.start)
+            cds_feature_tx_lengths[transcript].append(
+                cds_feature.end - cds_feature.start)
 
     # calculate for each transcript, the total cds length
     cds_features = []
     for transcript in cds_feature_tx_lengths.keys():
         cds_features.append(sum(cds_feature_tx_lengths[transcript]))
-    print('cds lengths (avg): {}'.format(sum(cds_features) / float(len(cds_features))))
+    print('cds lengths (avg): {}'.format(
+        sum(cds_features) / float(len(cds_features))))
     return sum(cds_features) / float(len(cds_features))
 
 
@@ -100,7 +103,6 @@ def calculate_total_utr_lengths(db, cds_dict, keys):
     #     elif classified_utr == '3utr':
     #         total_three_prime_utr_tx_lengths += (utr_feature.end - utr_feature.start)
 
-
     ### This method counts only nonoverlapping UTR regions ###
     utr5_out = None  # no need to write to file
     utr3_out = None  # no need to write to file
@@ -120,7 +122,7 @@ def calculate_total_utr_lengths(db, cds_dict, keys):
 def calculate_avg_utr_lengths(db, cds_dict, keys):
     """
     Calculates the average length of all UTR features in a db
-        
+
     :param db: gffutils.FeatureDB
     :param cds_dict: collections.defaultdict
         defaultdict{transcript:{'start':START, 'end':END}}
@@ -162,8 +164,10 @@ def calculate_avg_utr_lengths(db, cds_dict, keys):
         )
 
     # divide by total length by number of transcripts
-    avg_three_prime_utr_length = sum(three_prime_utr_lengths) / float(len(three_prime_utr_lengths))
-    avg_five_prime_utr_length = sum(five_prime_utr_lengths) / float(len(five_prime_utr_lengths))
+    avg_three_prime_utr_length = sum(
+        three_prime_utr_lengths) / float(len(three_prime_utr_lengths))
+    avg_five_prime_utr_length = sum(
+        five_prime_utr_lengths) / float(len(five_prime_utr_lengths))
 
     print(
         'three_prime_utr_lengths (avg): {}'.format(
@@ -180,7 +184,7 @@ def calculate_avg_utr_lengths(db, cds_dict, keys):
 def calculate_total_intron_lengths(db, exons_dict, transcripts_dict, keys):
     """
     Calculates the total length of distal, proximal, and all introns.
-    
+
     :param db: 
     :param exons_dict: 
     :param transcripts_dict: 
@@ -201,8 +205,10 @@ def calculate_total_intron_lengths(db, exons_dict, transcripts_dict, keys):
     distintrons = distintrons.sort()
     allintrons = allintrons.sort()
 
-    print('proximal intron lengths (total): {}'.format(proxintrons.total_coverage()))
-    print('distal intron lengths (total): {}'.format(distintrons.total_coverage()))
+    print('proximal intron lengths (total): {}'.format(
+        proxintrons.total_coverage()))
+    print('distal intron lengths (total): {}'.format(
+        distintrons.total_coverage()))
     print('all intron lengths (total): {}'.format(allintrons.total_coverage()))
 
 
@@ -210,7 +216,7 @@ def calculate_avg_lengths(db_file, species):
     """
     Prints all average lengths for CDS and 3/5'UTRs.
     Can be used to generate ratios for metagene plots.
-    
+
     :param db_file: gffutils.FeatureDB
     :param species: string
         used to generate chr19_keys corresonding to GTF column nomenclature.
@@ -230,7 +236,7 @@ def calculate_total_lengths(db_file, species):
     """"
     Prints number of bases labeled as CDS, UTR, and intron in a gtf db file.
     Can be used to generate ratios for region distribution pie charts.
-    
+
     :param db_file: gffutils.FeatureDB
     :param species: string
         used to generate chr19_keys corresonding to GTF column nomenclature.
@@ -283,5 +289,7 @@ def main():
 
     calculate_avg_lengths(db_file, species)
     calculate_total_lengths(db_file, species)
+
+
 if __name__ == "__main__":
     main()

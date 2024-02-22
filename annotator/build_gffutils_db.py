@@ -5,30 +5,32 @@
 
 # these two are really a minimum
 
-from __future__ import print_function
-from __future__ import division
+# from __future__ import print_function
+# from __future__ import division
 
 # uncomment from this compatibility import list, as py3/py2 support progresses
 
-from __future__  import absolute_import
-from __future__  import unicode_literals
-from future import standard_library
+# from __future__  import absolute_import
+# from __future__  import unicode_literals
+# from future import standard_library
 # from future.builtins import builtins
 # from future.builtins import utils
 # from future.utils import raise_with_traceback
-from future.utils import iteritems
+# from future.utils import iteritems
 
 from argparse import ArgumentParser
 import sys
 
 import gffutils
 
+
 def build_db(
         annotation_file, db_file, force=True, disable_infer_genes=True,
         disable_infer_transcripts=True
 ):
     db = gffutils.create_db(
-        annotation_file, dbfn=db_file, force=force, # change to True if we need to create a new db
+        # change to True if we need to create a new db
+        annotation_file, dbfn=db_file, force=force,
         keep_order=True, merge_strategy='merge', sort_attribute_values=True,
         disable_infer_genes=disable_infer_genes,
         disable_infer_transcripts=disable_infer_transcripts
@@ -86,6 +88,9 @@ def main():
     disable_infer_genes = args.disable_infer_genes
     disable_infer_transcripts = args.disable_infer_transcripts
 
-    build_db(annotation_file, db_file, force, disable_infer_genes, disable_infer_transcripts)
+    build_db(annotation_file, db_file, force,
+             disable_infer_genes, disable_infer_transcripts)
+
+
 if __name__ == "__main__":
     main()

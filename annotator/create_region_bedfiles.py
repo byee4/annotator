@@ -6,18 +6,18 @@
 
 # these two are really a minimum
 
-from __future__ import print_function
-from __future__ import division
+# from __future__ import print_function
+# from __future__ import division
 
 # uncomment from this compatibility import list, as py3/py2 support progresses
 
-from __future__  import absolute_import
-from __future__  import unicode_literals
-from future import standard_library
-# from future.builtins import builtins
-from future.builtins import utils
-from future.utils import raise_with_traceback
-from future.utils import iteritems
+# from __future__  import absolute_import
+# from __future__  import unicode_literals
+# from future import standard_library
+# # from future.builtins import builtins
+# from future.builtins import utils
+# from future.utils import raise_with_traceback
+# from future.utils import iteritems
 
 from argparse import ArgumentParser
 import sys
@@ -27,6 +27,7 @@ import pandas as pd
 from collections import defaultdict
 from . import annotation_functions as af
 from tqdm import trange
+
 
 def create_bedtools(features, keys, by_transcript=False):
     """
@@ -81,12 +82,13 @@ def merge_bedtool_by_gene(bedtool):
     """
     df = bedtool.to_dataframe()
     merged = pd.DataFrame(
-        columns=['chrom','start','end','name','score','strand', 'thickStart']
+        columns=['chrom', 'start', 'end', 'name',
+                 'score', 'strand', 'thickStart']
     )
     progress = trange(len(set(df['chrom'])))
     for chrom in set(df['chrom']):
         progress.set_description("Merging chromosome {}".format(chrom))
-        dx = df[df['chrom']==chrom]
+        dx = df[df['chrom'] == chrom]
         dx.sort_values('start', inplace=True)
         dy = dx.groupby(['name']).apply(
             lambda x: pybedtools.BedTool.from_dataframe(x).merge(
@@ -98,15 +100,17 @@ def merge_bedtool_by_gene(bedtool):
         progress.update(1)
     # Conversion from BedTool to DataFrame messes up the column order
     # Re-arrange here
-    merged.columns = ['chrom','start','end','strand','name','score','strand2']
-    merged = merged[['chrom','start','end','name','score','strand']]
-    merged.sort_values(by=['chrom','start'], inplace=True)
+    merged.columns = ['chrom', 'start', 'end',
+                      'strand', 'name', 'score', 'strand2']
+    merged = merged[['chrom', 'start', 'end', 'name', 'score', 'strand']]
+    merged.sort_values(by=['chrom', 'start'], inplace=True)
     return merged
+
 
 def create_cds_region_bedfile(db, keys, cds_out, by_transcript=False):
     """
     Creates the CDS region bedfile from a gffutils FeatureDB.
-    
+
     :param db: gffutils.FeatureDB
         gffutils sqlite db object
     :param keys: dict
@@ -128,12 +132,13 @@ def create_cds_region_bedfile(db, keys, cds_out, by_transcript=False):
         cdsdf = merge_bedtool_by_gene(cds)
 
     if cds_out is not None:
-        cdsdf.sort_values(by=['chrom','start','end'], inplace=True)
+        cdsdf.sort_values(by=['chrom', 'start', 'end'], inplace=True)
         cdsdf.to_csv(
             cds_out, sep=str("\t"), header=False,
             index=False
         )
     return cds
+
 
 def create_exon_region_bedfile(db, keys, exon_out, by_transcript=False):
     """
@@ -186,7 +191,8 @@ def create_gene_region_bedfile(db, keys, gene_out):
         #  TODO: remove this block of code when we know gene ids are unique
         for gene_id in gene_feature.attributes['gene_id']:
             if gene_id in gene_hash.keys():
-                print("hashkey exists for gene {} at: {}".format(gene_id, gene_hash[gene_id]))
+                print("hashkey exists for gene {} at: {}".format(
+                    gene_id, gene_hash[gene_id]))
             gene_hash[gene_id].append(gene_feature.start)
 
     genes = create_bedtools(gene_features, keys)
@@ -202,10 +208,11 @@ def create_gene_region_bedfile(db, keys, gene_out):
     #     index=False
     # )
 
+
 def create_utr_region_bedfiles(db, keys, cds_dict, utr3_out, utr5_out, by_transcript=False):
     """
     Creates UTR bedfiles from a gffutils FeatureDB.
-    
+
     :param db: gffutils.FeatureDB
         gffutils sqlite db object
     :param keys: dict
@@ -259,7 +266,6 @@ def create_utr_region_bedfiles(db, keys, cds_dict, utr3_out, utr5_out, by_transc
             utr5_out, sep=str("\t"), header=False, index=False
         )
 
-
     if by_transcript:
         utr3df = utr3.to_dataframe()
     else:
@@ -271,8 +277,9 @@ def create_utr_region_bedfiles(db, keys, cds_dict, utr3_out, utr5_out, by_transc
         )
     return utr5, utr3
 
+
 def create_intron_region_bedfiles(db, exons_dict, transcripts_dict, keys,
-            proxintron_out, distintron_out, allintron_out, by_transcript):
+                                  proxintron_out, distintron_out, allintron_out, by_transcript):
     """
     Creates prox and distal intron bedfiles from a gffutils FeatureDB.
 
@@ -306,7 +313,8 @@ def create_intron_region_bedfiles(db, exons_dict, transcripts_dict, keys,
     progress = trange(len(af.chromosome_set(db)))
 
     for chrom in af.chromosome_set(db):
-        progress.set_description("Calculating introns for chromosome {}".format(chrom))
+        progress.set_description(
+            "Calculating introns for chromosome {}".format(chrom))
 
         for element in db.region(seqid=chrom):
 
@@ -357,7 +365,6 @@ def create_intron_region_bedfiles(db, exons_dict, transcripts_dict, keys,
             proxintron_out, sep=str("\t"), header=False, index=False
         )
 
-
     if by_transcript:
         distintronsdf = distintrons.to_dataframe()
     else:
@@ -379,6 +386,7 @@ def create_intron_region_bedfiles(db, exons_dict, transcripts_dict, keys,
         )
     return proxintrons, distintrons, allintrons
 
+
 def create_region_bedfiles(
         db_file, species, cds_out, utr3_out, utr5_out,
         proxintron_out, distintron_out, allintron_out, gene_out, exon_out, by_transcript
@@ -396,11 +404,13 @@ def create_region_bedfiles(
     # Creates 3 and 5' UTR regions
     if utr3_out is not None or utr5_out is not None:
         cds_dict = af.get_all_cds_dict(db, keys['cds'])
-        create_utr_region_bedfiles(db, keys, cds_dict, utr3_out, utr5_out, by_transcript)
+        create_utr_region_bedfiles(
+            db, keys, cds_dict, utr3_out, utr5_out, by_transcript)
 
     # Creates the prox and dist intron regions
     if proxintron_out is not None or distintron_out is not None or allintron_out is not None:
-        exons_dict = af.get_all_exons_dict(db, keys['exon'], keys['transcript_id'])
+        exons_dict = af.get_all_exons_dict(
+            db, keys['exon'], keys['transcript_id'])
         transcripts_dict = af.get_all_transcripts_dict(db, keys['exon'], keys[
             'transcript_id'])
         create_intron_region_bedfiles(
@@ -414,6 +424,7 @@ def create_region_bedfiles(
     # Creates the exon regions
     if exon_out is not None:
         create_exon_region_bedfile(db, keys, exon_out, by_transcript)
+
 
 def main():
     # Setup argument parser
@@ -519,5 +530,7 @@ def main():
     create_region_bedfiles(db_file, species, cds_out, utr3_out, utr5_out,
                            proxintron_out, distintron_out, allintron_out,
                            gene_out, exon_out, by_transcript)
+
+
 if __name__ == "__main__":
     main()
