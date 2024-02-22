@@ -86,6 +86,19 @@ def get_keys(gtf_format):
         exon_key = 'exon'
         gene_id_key = 'GeneID'
         gene_type_key = 'gene_biotype'
+    elif gtf_format == 'ucsc':
+        cds_key = 'CDS'
+        utr3_key = '3UTR'
+        utr5_key = '5UTR'
+        utr_key = None
+        gene_key = 'gene'
+        gene_name_key = 'gene_name'
+        transcript_key = 'ID'
+        transcript_id_key = 'transcript_id'
+        type_key = 'gene_biotype'
+        exon_key = 'exon'
+        gene_id_key = 'GeneID'
+        gene_type_key = 'gene_type'
     else:  # default to gencode
         cds_key = 'CDS'
         utr3_key = None  #
