@@ -14,10 +14,16 @@ setup(
     author_email='',
     description='Annotate BED files with genic information given a priority list',
     packages=['annotator'],
+    install_requires=[
+        'tqdm',
+        'gffutils',
+        'pybedtools',
+        'pandas',
+    ]
     package_dir={
         'annotator': 'annotator',
     },
-    entry_points = {
+    entry_points={
         'console_scripts': [
             'annotator = annotator.annotator:main',
             'create_region_bedfiles = annotator.create_region_bedfiles:main',
