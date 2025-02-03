@@ -408,9 +408,14 @@ def return_highest_priority_feature(formatted_features, priority):
     # Build dict
     combined_dict = defaultdict(list)
     for feature_string in formatted_features:
-        # print("FEATURE STRING: {}".format(feature_string))
-        transcript, start, end, strand, feature_type, gene_id, \
-        gene_name, transcript_type_list, gene_type_list, overlap = feature_string.split(':')
+        
+        if feature_string.count(':') > 9: 
+            transcript, start, end, strand, feature_type, gene_id, \
+            gene_name_1, gene_name_2, transcript_type_list, gene_type_list, overlap = feature_string.split(':')
+            gene_name = ':'.join([gene_name_1, gene_name_2])
+        else:
+            transcript, start, end, strand, feature_type, gene_id, \
+            gene_name, transcript_type_list, gene_type_list, overlap = feature_string.split(':')
         transcript_type_list = transcript_type_list.split(',')
         for transcript_type, gene_type in zip(transcript_type_list, gene_type_list):
             combined_dict[
