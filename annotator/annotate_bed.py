@@ -394,7 +394,7 @@ def classify_transcript_type(
     return 'non_coding'
 
 
-def return_highest_priority_feature(formatted_features, priority):
+def return_highest_priority_feature(formatted_features, priority, delim=','):
     """
     Given a list of formatted features, return the feature with the highest
     priority. If there are ties, return just the first one.
@@ -408,14 +408,8 @@ def return_highest_priority_feature(formatted_features, priority):
     # Build dict
     combined_dict = defaultdict(list)
     for feature_string in formatted_features:
-        
-        if feature_string.count(':') > 9: 
-            transcript, start, end, strand, feature_type, gene_id, \
-            gene_name_1, gene_name_2, transcript_type_list, gene_type_list, overlap = feature_string.split(':')
-            gene_name = ':'.join([gene_name_1, gene_name_2])
-        else:
-            transcript, start, end, strand, feature_type, gene_id, \
-            gene_name, transcript_type_list, gene_type_list, overlap = feature_string.split(':')
+        transcript, start, end, strand, feature_type, gene_id, \
+        gene_name, transcript_type_list, gene_type_list, overlap = feature_string.split(delim)
         transcript_type_list = transcript_type_list.split(',')
         for transcript_type, gene_type in zip(transcript_type_list, gene_type_list):
             combined_dict[
@@ -450,7 +444,7 @@ def return_highest_priority_feature(formatted_features, priority):
     return combined_dict[0]
 
 
-def prioritize_transcript(unique_transcript_features, transcript_priority):
+def prioritize_transcript(unique_transcript_features, transcript_priority, delim=','):
     """
     Given a dictionary of features, return a dictionary containing
     a singular transcript for each unique gene in the feature set.
@@ -473,7 +467,7 @@ def prioritize_transcript(unique_transcript_features, transcript_priority):
             unique_transcript_features[transcript],
             transcript_priority
         )[1][0]  # [0] contains the dictionary key
-        gene_list = top_transcript.split(':')[5].split(',')
+        gene_list = top_transcript.split(delim)[5].split(',')
         for gene in gene_list:
             unique_genes[gene].append(top_transcript)
 
@@ -528,7 +522,7 @@ def prioritize_genes(unique_genes, gene_priority):
 
 
 def prioritize_transcript_then_gene(
-        formatted_features, transcript_priority, gene_priority, parent='gene'):
+        formatted_features, transcript_priority, gene_priority, parent='gene', delim=','):
     """
     Given a list of features, group them first by transcript
     and return the highest priority feature for each transcript.
@@ -552,8 +546,8 @@ def prioritize_transcript_then_gene(
 
     # Filter gene features (we deal with priority on a per-transcript basis)
     for feature_string in formatted_features:
-        if feature_string.split(':')[4] != parent:
-            transcript = feature_string.split(':')[0]
+        if feature_string.split(delim)[4] != parent:
+            transcript = feature_string.split(delim)[0]
             unique_transcripts[transcript].append(
                 feature_string
             )
@@ -566,7 +560,7 @@ def prioritize_transcript_then_gene(
     return top_gene
 
 
-def split_string(priority_string, delimiter=':'):
+def split_string(priority_string, delim=','):
     """
     Parses/splits a string with an expected format and returns
     three important fields: region, gene_id, gene_name. Returns
@@ -575,20 +569,20 @@ def split_string(priority_string, delimiter=':'):
     :param priority_string: string
         colon-delimited string containing region geneid and
         genename in fields 4-6 (0-based open).
-    :param delimiter: change
+    :param delim: change
     :return region, gene_id, gene_name:
     """
     if priority_string == 'intergenic':
         return 'intergenic', 'intergenic', 'intergenic'
     else:
-        fields = priority_string.split(delimiter)
+        fields = priority_string.split(delim)
         return fields[4], fields[5], fields[6]
 
 
 def annotate(
         chrom, start, end, name, score, strand,
         stranded, transcript_priority, gene_priority,
-        features_dict, cds_dict, keys):
+        features_dict, cds_dict, keys, delim=','):
 
     """
     Given position parameters, return the annotation string.
@@ -640,49 +634,42 @@ def annotate(
                 print("Warning: featuretype for feature {} is None".format(feature))
             elif feature.featuretype == keys['utr']:
                 feature.featuretype = af.classify_utr(feature, cds_dict)
-            to_append += "{}:{}:{}:{}:{}:".format(
-                transcript,
-                feature.start - 1,  # report 0 based
-                feature.end,
-                feature.strand,
-                feature.featuretype,
-            )
+            to_append += f"{transcript}{delim}{feature.start-1}{delim}{feature.end}{delim}{feature.strand}{delim}{feature.featuretype}{delim}"
             if keys['gene_id'] in feature.attributes.keys():
                 for t in feature.attributes[keys['gene_id']]:
                     to_append += '{},'.format(t)
-                to_append = to_append[:-1] + ':'
+                to_append = to_append[:-1] + delim
             else:
-                to_append = to_append + '-:'
+                to_append = to_append + '-' + delim
             if keys['gene_name'] in feature.attributes.keys():
                 for t in feature.attributes[keys['gene_name']]:
                     to_append += '{},'.format(t)
-                to_append = to_append[:-1] + ':'
+                to_append = to_append[:-1] + delim
             elif keys['transcript_id'] in feature.attributes.keys():
                 for t in feature.attributes[keys['transcript_id']]:
                     to_append += '{},'.format(t)
-                to_append = to_append[:-1] + ':'
+                to_append = to_append[:-1] + delim
             else:
-                to_append = to_append + '-:'
+                to_append = to_append + '-' + delim
             if keys['transcript_type'] in feature.attributes.keys():
                 for t in feature.attributes[keys['transcript_type']]:
                     to_append += '{},'.format(t)
-                to_append = to_append[:-1] + ':'
+                to_append = to_append[:-1] + delim
             else:
-                to_append = to_append + '-:'
+                to_append = to_append + '-' + delim
             if keys['gene_type'] in feature.attributes.keys():
                 for t in feature.attributes[keys['gene_type']]:
                     to_append += '{},'.format(t)
-                to_append = to_append[:-1] + ':'
+                to_append = to_append[:-1] + delim
             else:
-                to_append = to_append + '-:'
+                to_append = to_append + '-' + delim
             if 'overlap' in feature.attributes.keys():
                 for t in feature.attributes['overlap']:
                     to_append += '{},'.format(t)
                 to_append = to_append[:-1] + '|'
             else:
-                to_append = to_append + '-:'
-
-    to_append = to_append[:-1]  # remove the trailing ':'
+                to_append = to_append + '-' + delim
+    to_append = to_append[:-1]  # remove the trailing '|'
     if append_count == 1:  # if just one region, just return it.
         region, gene, rname = split_string(to_append)
     else:

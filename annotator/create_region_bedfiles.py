@@ -81,7 +81,7 @@ def merge_bedtool_by_gene(bedtool):
     """
     df = bedtool.to_dataframe()
     merged = pd.DataFrame(
-        columns=['chrom','start','end','name','score','strand', 'thickStart']
+        columns=['chrom','start','end','name','score','strand']
     )
     progress = trange(len(set(df['chrom'])))
     for chrom in set(df['chrom']):
@@ -98,8 +98,7 @@ def merge_bedtool_by_gene(bedtool):
         progress.update(1)
     # Conversion from BedTool to DataFrame messes up the column order
     # Re-arrange here
-    merged.columns = ['chrom','start','end','strand','name','score','strand2']
-    merged = merged[['chrom','start','end','name','score','strand']]
+    merged.columns = ['chrom','start','end','name','score','strand']
     merged.sort_values(by=['chrom','start'], inplace=True)
     return merged
 
@@ -243,7 +242,7 @@ def create_utr_region_bedfiles(db, keys, cds_dict, utr3_out, utr5_out, by_transc
         print("Having trouble guessing the UTR key dictionary")
         return 1
 
-    print('key: {}, key: {}'.format(keys['utr3'], keys['utr5']))
+    # print('key: {}, key: {}'.format(keys['utr3'], keys['utr5']))
     # Transform list of Intervals into BedTool
     utr5 = create_bedtools(five_prime_utr_features, keys, by_transcript)
     utr3 = create_bedtools(three_prime_utr_features, keys, by_transcript)
