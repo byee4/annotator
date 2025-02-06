@@ -3,24 +3,21 @@
 ### Requirements: See the environments.yaml file, or:
 
 ```
-conda create -n annotator \
-python=2.7 \
-gffutils=0.8.7.1 \
-bedtools=2.26 \
-pybedtools=0.7.10 \
-tqdm=4.14
-
-source activate annotator
-
-conda install --override-channels \
--c conda-forge bzip2 # fixes some weird c-library issue
+  - python=3
+  - numpy
+  - pandas
+  - bedtools
+  - pybedtools
+  - gffutils
+  - future
+  - tqdm
 ```
 
 ### Installation:
 ```
 git clone https://github.com/byee4/annotator/
 cd annotator
-python setup.py install
+pip install .
 ```
 
 ### Download Database File (sqlite db files created using [gffutils](https://pythonhosted.org/gffutils/))
