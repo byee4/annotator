@@ -42,7 +42,7 @@ annotator \
 --input BED6_FILE \
 --output OUTPUT_FILE \
 --gtfdb gencode.v19.annotation.gtf.db \
---species hg19
+--format gencode
 ```
 
 ### Output file:
@@ -119,6 +119,12 @@ however if strand is specified in the BED file, we'll try to look for
 correctly stranded features first. If strand is not specified, we'll
 prioritize positive stranded features first.
 
+```--format``` selects the expected GTF attribute names. Use `gencode` for
+`gene_type`/`transcript_type` files and `ensembl` for
+`gene_biotype`/`transcript_biotype` files. If the selected format and the
+database use opposite names for these two biotypes, annotator also checks the
+alternate names.
+
 ```--limit-chroms-to``` will limit the dictionary build to only
 include these chromosomes for faster processing and less memory
 footprint. Leave blank to hash all chromosomes in the db file
@@ -189,9 +195,7 @@ where MATURE is an optional column linking the precursor accession to its proces
 - You can use the ```build_gffutils_db``` script to create a gffdb from a gff file downloaded from mirbase.
 
 # General notes:
-- The ```--species``` flag is only important for setting the GTF file nomenclature; different GTF/GFF files have
-differently formatted "attributes" terminologies (see the difference between a wormbase.org and a gencode GTF file).
-Currently setting this flag to either 'ce10' or 'ce11' will assuming it is formatted the wormbase way. Otherwise
-the format will default to the 'gencode' nomenclature. To use another format, you will have to look at annotate_bed.get_keys(),
-which tells this package what keys to expect from the 'attributes' section of the GTF file.
--
+- `annotator --format` selects the GTF attribute convention. The `ce10` and
+  `ce11` values use WormBase keys; the default is GENCODE. Other commands may
+  still use `--species`. For additional formats, see
+  `annotation_functions.get_keys()`.
