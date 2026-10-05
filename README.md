@@ -32,6 +32,9 @@ pip install .
 
 Use at your own risk! Not all GTF files are of the same structure.
 
+For a small Ensembl-format database with a transcript lacking a `gene` row,
+see [the example GTF, database, and BED file](examples/ensembl_gtf/README.md).
+
 # Annotator Example Usage:
 
 ```

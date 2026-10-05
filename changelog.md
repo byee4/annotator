@@ -5,6 +5,11 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+### Added
+- A small Ensembl-format GTF, gffutils database, and BED example for
+  transcripts without a separate gene feature, including the transcript
+  named in issue #3. Tests verify the database and annotations.
+
 
 ## [0.1.0] - 2022-11-21
 ### Changed
@@ -76,4 +81,3 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 - README now contains examples and default priorities/params
 
 [Unreleased]: https://github.com/byee4/annotator...HEAD
-

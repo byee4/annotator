@@ -107,5 +107,6 @@ ENV/
 
 # big folders to ignore
 datasets/
-examples/
+examples/*
+!examples/ensembl_gtf/
 tests/
