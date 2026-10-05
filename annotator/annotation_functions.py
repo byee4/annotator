@@ -132,14 +132,12 @@ def get_keys(gtf_format):
 
 def get_gene_to_transcript_dict(db, gene_id_key, transcript_id_key):
     """
-    Returns a gene: transcript dictionary. 
-    
-    gene:[transcript1, transcript2]
-    
-    :param db: gffutils.FeatureDB
-    :param gene_id_key: string
-    :param transcript_id_key: string
-    :return: 
+    Map each gene ID to the transcript IDs on its transcript features.
+
+    :param db: gffutils.FeatureDB containing transcript features
+    :param gene_id_key: attribute name containing gene IDs
+    :param transcript_id_key: attribute name containing transcript IDs
+    :return: defaultdict(list) mapping gene IDs to lists of transcript IDs
     """
 
     genes_dict = defaultdict(list)
@@ -234,18 +232,12 @@ def get_all_cds_dict(db, cds_key):
 
 def get_all_exons_dict(db, exon_key, transcript_id_key):
     """
-    Returns dictionary of exons as transcript_id:{
-        [
-            {'start':START, 'end':END},
-            {'start':START, 'end':END},
-            ...
-        ]
-    }.
-  
-    :param db: gffutils.FeatureDB
-    :param transcript_id_key: string
-    :param exon_key: string
-    :return: 
+    Collect exon coordinates, chromosome, and strand by transcript ID.
+
+    :param db: gffutils.FeatureDB containing exon features
+    :param exon_key: feature type to treat as an exon
+    :param transcript_id_key: attribute name containing transcript IDs
+    :return: defaultdict(list) mapping transcript IDs to exon dictionaries
     """
 
     exons_dict = defaultdict(list)
@@ -264,13 +256,12 @@ def get_all_exons_dict(db, exon_key, transcript_id_key):
 
 def get_all_transcripts_dict(db, transcript_key, transcript_id_key):
     """
-    Returns dictionary of transcript_id:{'start':START, 'end':END}.
-  
-    :param db: gffutils.FeatureDB
-    :param transcript_key: string
-    :param transcript_id_key: string
-    :return: chr19_transcripts_dict: defaultdict(dict)
-        hash of transcripts and their start/end coordinates
+    Collect the start and end coordinates of each transcript ID.
+
+    :param db: gffutils.FeatureDB containing transcript features
+    :param transcript_key: feature type to treat as a transcript
+    :param transcript_id_key: attribute name containing transcript IDs
+    :return: defaultdict(dict) mapping transcript IDs to start/end dictionaries
     """
     transcripts_dict = defaultdict(dict)
     for transcript_feature in db.features_of_type(transcript_key):
