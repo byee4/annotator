@@ -1,0 +1,8 @@
+## Synthetic Ensembl-style GTF for testing annotator; coordinates and IDs are illustrative.
+chr1	example	transcript	101	180	.	+	.	gene_id "ENSG_EXAMPLE_1"; transcript_id "ENST_EXAMPLE_1"; gene_name "EXAMPLE1"; gene_biotype "protein_coding"; transcript_biotype "protein_coding";
+chr1	example	exon	101	180	.	+	.	gene_id "ENSG_EXAMPLE_1"; transcript_id "ENST_EXAMPLE_1"; gene_name "EXAMPLE1"; gene_biotype "protein_coding"; transcript_biotype "protein_coding"; exon_number "1";
+chr1	example	five_prime_utr	101	110	.	+	.	gene_id "ENSG_EXAMPLE_1"; transcript_id "ENST_EXAMPLE_1"; gene_name "EXAMPLE1"; gene_biotype "protein_coding"; transcript_biotype "protein_coding";
+chr1	example	CDS	111	170	.	+	0	gene_id "ENSG_EXAMPLE_1"; transcript_id "ENST_EXAMPLE_1"; gene_name "EXAMPLE1"; gene_biotype "protein_coding"; transcript_biotype "protein_coding";
+chr1	example	three_prime_utr	171	180	.	+	.	gene_id "ENSG_EXAMPLE_1"; transcript_id "ENST_EXAMPLE_1"; gene_name "EXAMPLE1"; gene_biotype "protein_coding"; transcript_biotype "protein_coding";
+chr1	ensembl	transcript	931346	933431	.	-	.	gene_id "ENSG00000272512"; transcript_id "ENST00000606034"; gene_name "RP11-54O7.17"; gene_biotype "lincRNA"; transcript_biotype "lincRNA";
+chr1	ensembl	exon	931346	933431	.	-	.	gene_id "ENSG00000272512"; transcript_id "ENST00000606034"; gene_name "RP11-54O7.17"; gene_biotype "lincRNA"; transcript_biotype "lincRNA"; exon_number "1";
