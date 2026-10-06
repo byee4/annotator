@@ -10,6 +10,16 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
   transcripts without a separate gene feature, including the transcript
   named in issue #3. Tests verify the database and annotations.
 
+### Fixed
+- Accept either `transcript_type`/`gene_type` or
+  `transcript_biotype`/`gene_biotype` attributes when annotating GTF databases,
+  so coding regions are not misclassified when the selected format uses the
+  other pair of keys.
+
+### Tests
+- Verify coding classification under both biotype naming conventions and
+  preserve noncoding classification for a noncoding transcript of a coding gene.
+
 
 ## [0.1.0] - 2022-11-21
 ### Changed

@@ -651,14 +651,30 @@ def annotate(
                 to_append = to_append[:-1] + delim
             else:
                 to_append = to_append + '-' + delim
-            if keys['transcript_type'] in feature.attributes.keys():
-                for t in feature.attributes[keys['transcript_type']]:
+            transcript_types = feature.attributes.get(keys['transcript_type'])
+            if not transcript_types:
+                alternate_key = (
+                    'transcript_biotype'
+                    if keys['transcript_type'] == 'transcript_type'
+                    else 'transcript_type'
+                )
+                transcript_types = feature.attributes.get(alternate_key)
+            if transcript_types:
+                for t in transcript_types:
                     to_append += '{},'.format(t)
                 to_append = to_append[:-1] + delim
             else:
                 to_append = to_append + '-' + delim
-            if keys['gene_type'] in feature.attributes.keys():
-                for t in feature.attributes[keys['gene_type']]:
+            gene_types = feature.attributes.get(keys['gene_type'])
+            if not gene_types:
+                alternate_key = (
+                    'gene_biotype'
+                    if keys['gene_type'] == 'gene_type'
+                    else 'gene_type'
+                )
+                gene_types = feature.attributes.get(alternate_key)
+            if gene_types:
+                for t in gene_types:
                     to_append += '{},'.format(t)
                 to_append = to_append[:-1] + delim
             else:
