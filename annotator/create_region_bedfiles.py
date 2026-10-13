@@ -29,18 +29,12 @@ from . import annotation_functions as af
 from tqdm import trange
 
 def create_bedtools(features, keys, by_transcript=False):
-    """
-    Given a list of features and chr19_keys dictionary, create a bedtool
-    containing intervals of features whose name is specified
-    using chr19_keys['gene_id']
+    """Convert inclusive GFF features to half-open BED intervals.
 
-    :param features: list
-        list of gffutils features (1-based) for which to convert
-        to bedtool intervals
-    :param keys: dict
-        a set of chr19_keys and values which helps translate different
-        GTF/GFF nomenclatures (ie. 'cds'
-    :return:
+    :param features: Iterable of one-based inclusive GFF features.
+    :param keys: Source vocabulary from annotation_functions.get_keys.
+    :param by_transcript: True to name intervals by transcript and preserve individual features; False to name by gene and merge exported overlapping intervals.
+    :return: A BedTool with chromosome, converted start/end, selected ID, score 0, and strand. Multiple IDs produce separate intervals.
     """
     intervals = []
     key = 'transcript_id' if by_transcript else 'gene_id'
@@ -59,25 +53,10 @@ def create_bedtools(features, keys, by_transcript=False):
 
 
 def merge_bedtool_by_gene(bedtool):
-    """
-    Takes a bedtool and does a merge, but preserves the distinct names.
-    This is different than using bedtools merge.
+    """Merge BED intervals separately by chromosome, gene name, and strand.
 
-    ie.
-
-    chr1    100 200 GENE1   0   +
-    chr1    150 230 GENE1   0   +
-    chr1    150 250 GENE2   0   +
-
-    ->
-
-    chr1    100 230 GENE1   0   +
-    chr1    150 250 GENE2   0   +
-
-    :param bedtool: pybedtools.BedTool
-
-    :return merged: pandas.DataFrame
-        table containing unique merged entries per distinct name.
+    :param bedtool: BED6 BedTool; intervals within each chromosome and gene are merged strand-specifically.
+    :return: A DataFrame with chrom/start/end/name/score/strand columns, sorted by chromosome and start. Requires the bedtools executable.
     """
     df = bedtool.to_dataframe()
     merged = pd.DataFrame(
@@ -103,17 +82,13 @@ def merge_bedtool_by_gene(bedtool):
     return merged
 
 def create_cds_region_bedfile(db, keys, cds_out, by_transcript=False):
-    """
-    Creates the CDS region bedfile from a gffutils FeatureDB.
-    
-    :param db: gffutils.FeatureDB
-        gffutils sqlite db object
-    :param keys: dict
-        {'region':region defined in GTF}. Sets the naming scheme 
-         for GTF parsing
-    :param cds_out: str
-        file name for output bedfile
-    :return cds: 
+    """Return CDS intervals and optionally write their selected-name BED export.
+
+    :param db: gffutils.FeatureDB containing the requested feature types.
+    :param keys: Source vocabulary from annotation_functions.get_keys.
+    :param cds_out: Optional CDS BED output path, or None.
+    :param by_transcript: True to name intervals by transcript and preserve individual features; False to name by gene and merge exported overlapping intervals.
+    :return: The original unmerged CDS BedTool; a written export is merged by gene unless by_transcript is True.
     """
     cds_features = []
 
@@ -135,17 +110,13 @@ def create_cds_region_bedfile(db, keys, cds_out, by_transcript=False):
     return cds
 
 def create_exon_region_bedfile(db, keys, exon_out, by_transcript=False):
-    """
-    Creates the exon region bedfile from a gffutils FeatureDB.
+    """Write exon intervals as a BED export.
 
-    :param db: gffutils.FeatureDB
-        gffutils sqlite db object
-    :param keys: dict
-        {'region':region defined in GTF}. Sets the naming scheme
-         for GTF parsing
-    :param cds_out: str
-        file name for output bedfile
-    :return:
+    :param db: gffutils.FeatureDB containing the requested feature types.
+    :param keys: Source vocabulary from annotation_functions.get_keys.
+    :param exon_out: Exon BED output path.
+    :param by_transcript: True to name intervals by transcript and preserve individual features; False to name by gene and merge exported overlapping intervals.
+    :return: None; writes a BED6 export, sorted when by_transcript is True.
     """
     exon_features = []
 
@@ -166,17 +137,12 @@ def create_exon_region_bedfile(db, keys, exon_out, by_transcript=False):
 
 
 def create_gene_region_bedfile(db, keys, gene_out):
-    """
-    Creates the exon region bedfile from a gffutils FeatureDB.
+    """Write gene features as half-open BED intervals.
 
-    :param db: gffutils.FeatureDB
-        gffutils sqlite db object
-    :param keys: dict
-        {'region':region defined in GTF}. Sets the naming scheme
-         for GTF parsing
-    :param cds_out: str
-        file name for output bedfile
-    :return:
+    :param db: gffutils.FeatureDB containing the requested feature types.
+    :param keys: Source vocabulary from annotation_functions.get_keys.
+    :param gene_out: Gene BED output path.
+    :return: None; writes the unmerged gene intervals.
     """
     gene_features = []
     gene_hash = defaultdict(list)
@@ -202,26 +168,15 @@ def create_gene_region_bedfile(db, keys, gene_out):
     # )
 
 def create_utr_region_bedfiles(db, keys, cds_dict, utr3_out, utr5_out, by_transcript=False):
-    """
-    Creates UTR bedfiles from a gffutils FeatureDB.
-    
-    :param db: gffutils.FeatureDB
-        gffutils sqlite db object
-    :param keys: dict
-        {'region':region defined in GTF}. Sets the naming scheme 
-         for GTF parsing
-    :param cds_dict: dict
-        dictionary of {transcript:cds_regions}
-    :param utr3_out: str
-        file name for output bedfile
-    :param utr5_out: str
-        file name for output bedfile
-    :param by_transcript: bool
-        if True, return all UTR regions, regardless (every UTR in every transcript is reported)
-        if False, return all UTR regions as a merged region according to gene
-        (merged, unoverlapping UTR region is reported for every gene)
+    """Return and optionally export five-prime and three-prime UTR intervals.
 
-    :return: 
+    :param db: gffutils.FeatureDB containing the requested feature types.
+    :param keys: Source vocabulary from annotation_functions.get_keys.
+    :param cds_dict: Mapping of transcript IDs to inclusive low/hi CDS bounds, used to classify generic UTR features.
+    :param utr3_out: Optional three-prime UTR output path, or None.
+    :param utr5_out: Optional five-prime UTR output path, or None.
+    :param by_transcript: True to name intervals by transcript and preserve individual features; False to name by gene and merge exported overlapping intervals.
+    :return: A tuple (five_prime, three_prime) of unmerged BedTools. Supports generic UTR or explicit utr5/utr3 feature types. Returns 1 with a diagnostic if neither vocabulary is available.
     """
     five_prime_utr_features = []
     three_prime_utr_features = []
@@ -272,23 +227,17 @@ def create_utr_region_bedfiles(db, keys, cds_dict, utr3_out, utr5_out, by_transc
 
 def create_intron_region_bedfiles(db, exons_dict, transcripts_dict, keys,
             proxintron_out, distintron_out, allintron_out, by_transcript):
-    """
-    Creates prox and distal intron bedfiles from a gffutils FeatureDB.
+    """Return and optionally export proximal, distal, and complete intron intervals.
 
-    :param db: gffutils.FeatureDB
-        gffutils sqlite db object
-    :param keys: dict
-        {'region':region defined in GTF}. Sets the naming scheme 
-         for GTF parsing
-    :param exons_dict: dict
-        dictionary of {transcript:exon_regions}
-    :param transcripts_dict: dict
-        dictionary of {transcript:gffutils.Features}
-    :param proxintron_out: str
-        file name for output bedfile
-    :param distintron_out: str
-        file name for output bedfile
-    :return: 
+    :param db: gffutils.FeatureDB containing the requested feature types.
+    :param exons_dict: Mapping of transcript IDs to inclusive exon coordinate dictionaries.
+    :param transcripts_dict: Mapping of transcript IDs to inclusive start/end dictionaries.
+    :param keys: Source vocabulary from annotation_functions.get_keys.
+    :param proxintron_out: Optional proximal intron output path, or None.
+    :param distintron_out: Optional distal intron output path, or None.
+    :param allintron_out: Optional complete intron output path, or None.
+    :param by_transcript: True to name intervals by transcript and preserve individual features; False to name by gene and merge exported overlapping intervals.
+    :return: A tuple (proximal, distal, all_introns) of unmerged BedTools. Proximal regions lie within 500 bases of an exon; introns of length at most 1000 are entirely proximal.
     """
     allintrons = []
     proxintrons = []
@@ -384,6 +333,21 @@ def create_region_bedfiles(
 ):
     ### get the parsed regions ###
 
+    """Write selected BED exports from a feature database.
+
+    :param db_file: Path to a gffutils database.
+    :param species: Source vocabulary accepted by get_keys.
+    :param cds_out: Optional CDS BED destination.
+    :param utr3_out: Optional three-prime UTR BED destination.
+    :param utr5_out: Optional five-prime UTR BED destination.
+    :param proxintron_out: Optional proximal intron BED destination.
+    :param distintron_out: Optional distal intron BED destination.
+    :param allintron_out: Optional complete intron BED destination.
+    :param gene_out: Optional gene BED destination.
+    :param exon_out: Optional exon BED destination.
+    :param by_transcript: Preserve transcript names instead of gene merging.
+    :return: None; only non-None destinations select exports. Requires bedtools.
+    """
     keys = af.get_keys(species)
     db = gffutils.FeatureDB(db_file)
     featuretypes = [x.lower() for x in list(db.featuretypes())]
@@ -416,6 +380,12 @@ def create_region_bedfiles(
 
 def main():
     # Setup argument parser
+    """Export requested BED regions from command-line db_file and species options.
+
+    Reads sys.argv. Optional cds/utr3/utr5/proxintron/distintron/allintron/gene/exon
+    output paths select exports; by-transcript retains transcript names.
+    Returns None after writing requested files. Requires bedtools.
+    """
     parser = ArgumentParser()
 
     parser.add_argument(

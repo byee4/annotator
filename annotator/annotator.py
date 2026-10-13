@@ -65,12 +65,11 @@ GENE_PRIORITY = [
 
 
 def parse_annotation_priority(priority_file, delim=','):
-    """
-    From a comma delimited file, return a list of lists
-    describing the priority with which to annotate stuff.
+    """Read class/region priority pairs in file order.
 
-    :param priority_file:
-    :return:
+    :param priority_file: Text path with one two-field class/region row per line.
+    :param delim: Field delimiter, comma by default.
+    :return: A list of two-element lists preserving file order.
     """
     priority = []
     with open(priority_file, 'r') as f:
@@ -81,6 +80,12 @@ def parse_annotation_priority(priority_file, delim=','):
 
 def main():
     # Setup argument parser
+    """Annotate BED6 queries from command-line input/output and gtfdb paths.
+
+    Reads sys.argv. Optional format, priority files, chromosome limits, append-chr,
+    and unstranded flags select annotation policy. Returns None and writes
+    annotated rows through annotate_bed; normal CLI file errors propagate.
+    """
     parser = ArgumentParser()
 
     parser.add_argument(

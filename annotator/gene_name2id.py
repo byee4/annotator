@@ -25,7 +25,13 @@ from collections import defaultdict
 
 
 def get_id_from_namerow(row, name2id, name_col):
-    """ Uses name2id dict to return the id with the associated name. """
+    """Look up ordered gene IDs for one table row. The lookup value is converted to str.
+
+    :param row: Mapping or pandas row holding the lookup column.
+    :param name2id: Mapping of names to ordered ID lists.
+    :param name_col: Column name used for lookup.
+    :return: A pipe-joined ID string, or an empty string for an unknown key.
+    """
     try:
         return '|'.join(name2id[str(row[name_col])])
     except KeyError:
@@ -33,26 +39,24 @@ def get_id_from_namerow(row, name2id, name_col):
         return ''
 
 def add_id_to_dataframe(df, name2id_dict, name_col):
-    """ adds id values to pandas dataframe """
+    """Append the 'gene id' lookup column to a DataFrame. Raises AssertionError if the ID column already exists.
+
+    :param df: Pandas DataFrame to update in place.
+    :param name2id_dict: Mapping of names to ordered ID lists.
+    :param name_col: Column name used for lookup.
+    :return: The same DataFrame with joined IDs; unknown keys have empty strings.
+    """
     assert 'gene id' not in df.columns
     df['gene id'] = df.apply(get_id_from_namerow, args=[name2id_dict, name_col], axis=1)
     return df
 
 
 def build_name_to_id_dict(gffdb_file, custom_file):
-    """
-    Returns {gene_name:gene_id} dictionary.
-    Names with more than 1 associated ID will be appended, delimited by |.
-    
-    :param gffdb_file: string
-        path of the gtfdb.
-        Database must contain:
-        'gene' in featuretype field
-        'gene_name' in feature.attributes.chr19_keys()
-        'gene_id' in feature.attributes.chr19_keys()
-        
-    :return name2id_dict: dict
-        {gene_name:gene_id[]}
+    """Build an identifier mapping from optional database and custom table sources.
+
+    :param gffdb_file: Optional path to a gffutils database, or None.
+    :param custom_file: Optional tab-delimited mapping path; comment lines start with #. Gene mappings use ID/name columns; microRNA mappings use precursor ID/name/pipe-delimited mature IDs.
+    :return: A defaultdict(list) mapping names to ID lists; empty when both sources are None. Source errors are printed and do not propagate.
     """
     # delim = '|'
     name2id = defaultdict(list)
@@ -81,22 +85,15 @@ def build_name_to_id_dict(gffdb_file, custom_file):
 
 
 def read_and_append_id(in_file, sep, name_col, gffdb_file, custom_file, delete_original_column):
-    """
-    Reads in a delimited file with miRNA names in at least one column
-    Returns dataframe containing matching miRNA precursor ids.
-    
-    :param in_file: string
-        input delimited file
-    :param sep: string
-        delimiter
-    :param name_col: string
-        column name where miRNA names exist
-    :param gffdb_file: string
-        path to gffutils database file
-    :param delete_original_column: bool
-        if True, delete the original name column (specified with name_col)
-        if False, keep it.
-    :return: 
+    """Read a header-bearing table and append gene IDs.
+
+    :param in_file: Input table path with a header row.
+    :param sep: Input/output table delimiter.
+    :param name_col: Column name used for lookup.
+    :param gffdb_file: Optional path to a gffutils database, or None.
+    :param custom_file: Optional tab-delimited mapping path; comment lines start with #. Gene mappings use ID/name columns; microRNA mappings use precursor ID/name/pipe-delimited mature IDs.
+    :param delete_original_column: True to drop the name column and index by ID; False to index by the original name.
+    :return: A DataFrame indexed by original names or IDs according to delete_original_column.
     """
     df = pd.read_table(in_file, sep=sep)
 
@@ -112,6 +109,17 @@ def read_and_append_id(in_file, sep, name_col, gffdb_file, custom_file, delete_o
 
 
 def convert(in_file, sep, name_col, out_file, gtfdb_file, custom_file, delete_original_column):
+    """Convert a header-bearing identifier table and write its indexed result.
+
+    :param in_file: Input table path with a header row.
+    :param sep: Input/output table delimiter.
+    :param name_col: Column name used for lookup.
+    :param out_file: Output table path; includes header and index.
+    :param gtfdb_file: Optional path to a gffutils database, or None.
+    :param custom_file: Optional tab-delimited mapping path; comment lines start with #. Gene mappings use ID/name columns; microRNA mappings use precursor ID/name/pipe-delimited mature IDs.
+    :param delete_original_column: True to drop the name column and index by ID; False to index by the original name.
+    :return: None; the output file contains the converted table.
+    """
     df = read_and_append_id(
         in_file, sep, name_col, gtfdb_file, custom_file,
         delete_original_column
@@ -121,6 +129,12 @@ def convert(in_file, sep, name_col, out_file, gtfdb_file, custom_file, delete_or
 
 def main():
     # Setup argument parser
+    """Convert gene names using command-line input/output paths and mapping options.
+
+    Reads sys.argv: custom and/or gffdb supply ID mappings; name_col identifies
+    the name column; sep defaults to tab. delete_original_column indexes by ID
+    instead of name. Returns None after writing the converted table.
+    """
     parser = ArgumentParser()
 
     parser.add_argument(
