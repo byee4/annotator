@@ -92,3 +92,30 @@ def test_cli_help_lists_options_and_exits_successfully(module, monkeypatch, caps
         module.main()
     assert exc.value.code == 0
     assert 'usage:' in capsys.readouterr().out
+
+
+def test_annotation_cli_applies_prefix_strand_fallback_and_priority_files(tmp_path, monkeypatch):
+    gtf=tmp_path/'input.gtf'
+    gtf.write_text(''.join('1\tx\t{}\t{}\t{}\t.\t-\t.\tgene_id "g1"; gene_name "Alpha"; transcript_id "tx1"; transcript_type "protein_coding"; gene_type "protein_coding";\n'.format(*r) for r in [
+        ('gene',1,100),('transcript',1,100),('exon',1,100),('CDS',20,80)]))
+    db=tmp_path/'input.db';build_gffutils_db.build_db(str(gtf),str(db),True,True,True)
+    source=tmp_path/'queries.bed';source.write_text('chr1\t30\t40\tquery\t0\t+\n')
+    priority=tmp_path/'priority.txt';priority.write_text('protein_coding,CDS\nprotein_coding,exon\n')
+    out=tmp_path/'output.bed'
+    monkeypatch.setattr('sys.argv',['annotator','--input',str(source),'--output',str(out),'--gtfdb',str(db),
+                                  '--append-chr','--unstranded','--limit-chroms-to','1',
+                                  '--transcript-priority-file',str(priority),'--gene-priority-file',str(priority)])
+    annotator.main()
+    assert out.read_text().strip().split('\t')[6:9]==['g1','Alpha','CDS']
+
+
+@pytest.mark.parametrize('strand,expected', [('+','miRNA'),('-','miRNA')])
+def test_annotation_cli_identifies_mirna_exons(tmp_path,monkeypatch,strand,expected):
+    gtf=tmp_path/'input.gtf'
+    gtf.write_text(''.join('chr1\tx\t{}\t1\t100\t.\t{}\t.\tgene_id "g1"; gene_name "mir-one"; transcript_id "tx1"; transcript_type "miRNA"; gene_type "miRNA";\n'.format(kind,strand) for kind in ['gene','transcript','exon']))
+    db=tmp_path/'input.db';build_gffutils_db.build_db(str(gtf),str(db),True,True,True)
+    source=tmp_path/'queries.bed';source.write_text('chr1\t30\t40\tquery\t0\t'+strand+'\n')
+    out=tmp_path/'output.bed'
+    monkeypatch.setattr('sys.argv',['annotator','--input',str(source),'--output',str(out),'--gtfdb',str(db)])
+    annotator.main()
+    assert out.read_text().strip().split('\t')[6:9]==['g1','mir-one',expected]

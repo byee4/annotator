@@ -185,3 +185,20 @@ def test_profiling_decorator_propagates_failure_and_prints_stats(capsys):
     with pytest.raises(ValueError, match='sentinel'):
         failing()
     assert 'function calls' in capsys.readouterr().out
+
+
+@pytest.mark.parametrize('query', [(0,15),(15,30)])
+def test_stranded_overlap_finds_features_when_only_one_query_edge_overlaps(query):
+    f=feature(10,20);f.id='partial'
+    features=defaultdict(list);features['chr1',0,'+']=[f]
+    result=ab.get_all_overlapping_features_from_query_stranded('chr1',*query,'+',features)
+    assert [x.id for x in result]==['partial']
+
+
+def test_gene_name_lookup_reports_missing_required_attribute(capsys):
+    gene=SimpleNamespace(attributes={'gene_id':['g1']})
+    db=SimpleNamespace(features_of_type=lambda kind:iter([gene]))
+    with pytest.raises(SystemExit) as exc:
+        af.gene_id_to_name(db,'gene_name')
+    assert exc.value.code==1
+    assert 'Warning. Key not found' in capsys.readouterr().out

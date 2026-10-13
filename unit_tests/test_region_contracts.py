@@ -171,3 +171,16 @@ def test_total_lengths_wrapper_reports_actual_coding_utr_and_intron_bases(db, tm
     for text in ['cds lengths (total): 131', 'five_prime_utr_lengths (total): 19',
                  'three_prime_utr_lengths (total): 50', 'all intron lengths (total): 1400']:
         assert text in out
+
+
+def test_gene_export_preserves_distinct_features_with_repeated_gene_id(keys,tmp_path,capsys):
+    genes=[gffutils.Feature(seqid='chr1',start=1,end=10,strand='+',attributes={'gene_id':['same']}),
+           gffutils.Feature(seqid='chr2',start=20,end=30,strand='-',attributes={'gene_id':['same']})]
+    class DB:
+        def features_of_type(self,kind):
+            assert kind=='gene'
+            return iter(genes)
+    out=tmp_path/'genes.bed'
+    regions.create_gene_region_bedfile(DB(),keys,str(out))
+    assert coords(pybedtools.BedTool(str(out)))==[('chr1',0,10,'same','+'),('chr2',19,30,'same','-')]
+    assert 'hashkey exists for gene same' in capsys.readouterr().out
