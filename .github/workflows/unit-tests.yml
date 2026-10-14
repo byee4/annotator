@@ -12,6 +12,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.10'
+      - name: Install BEDTools
+        run: sudo apt-get update && sudo apt-get install -y bedtools
       - name: Install test dependencies
         run: python -m pip install pytest gffutils pybedtools pandas numpy future tqdm
       - name: Run unit tests

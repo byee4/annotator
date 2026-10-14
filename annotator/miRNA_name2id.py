@@ -27,7 +27,13 @@ from collections import defaultdict
 
 
 def get_precursor_id_from_namerow(row, name2id, name_col):
-    """ Uses name2id dict to return the id with the associated name. """
+    """Look up ordered microRNA precursor IDs for one table row.
+
+    :param row: Mapping or pandas row holding the lookup column.
+    :param name2id: Mapping of names to ordered ID lists.
+    :param name_col: Column name used for lookup.
+    :return: A pipe-joined ID string, or an empty string for an unknown key.
+    """
     try:
         return '|'.join(name2id[row[name_col]])
     except KeyError:
@@ -36,7 +42,13 @@ def get_precursor_id_from_namerow(row, name2id, name_col):
 
 
 def get_mature_id_from_idrow(row, precursor2mature, name_col):
-    """ Uses name2id dict to return the id with the associated name. """
+    """Look up ordered mature microRNA IDs for one precursor row.
+
+    :param row: Mapping or pandas row holding the lookup column.
+    :param precursor2mature: Mapping of precursor IDs to ordered mature ID lists.
+    :param name_col: Column name used for lookup.
+    :return: A pipe-joined ID string, or an empty string for an unknown key.
+    """
     try:
         return '|'.join(precursor2mature[row[name_col]])
     except KeyError:
@@ -45,24 +57,37 @@ def get_mature_id_from_idrow(row, precursor2mature, name_col):
 
 
 def add_precursor_id_to_dataframe(df, name2id_dict, name_col):
-    """ adds id values to pandas dataframe """
+    """Append the 'miRNA id' lookup column to a DataFrame. Raises AssertionError if the ID column already exists.
+
+    :param df: Pandas DataFrame to update in place.
+    :param name2id_dict: Mapping of names to ordered ID lists.
+    :param name_col: Column name used for lookup.
+    :return: The same DataFrame with joined IDs; unknown keys have empty strings.
+    """
     assert 'miRNA id' not in df.columns
     df['miRNA id'] = df.apply(get_precursor_id_from_namerow, args=[name2id_dict, name_col], axis=1)
     return df
 
 
 def add_mature_id_to_dataframe(df, precursor2mature_dict, name_col):
+    """Append the 'mature' lookup column to a DataFrame.
+
+    :param df: Pandas DataFrame to update in place.
+    :param precursor2mature_dict: Mapping of precursor IDs to ordered mature ID lists.
+    :param name_col: Column name used for lookup.
+    :return: The same DataFrame with joined IDs; unknown keys have empty strings.
+    """
     print(df.head())
     df['mature'] = df.apply(get_mature_id_from_idrow, args=[precursor2mature_dict, name_col], axis=1)
     return df
 
 
 def build_precursor_id_to_mature_id_dict(gffdb_file, custom_file):
-    """
-    Uses a gffdb file and a custom file to
-    :param gffdb_file:
-    :param custom_file:
-    :return:
+    """Build an identifier mapping from optional database and custom table sources.
+
+    :param gffdb_file: Optional path to a gffutils database, or None.
+    :param custom_file: Optional tab-delimited mapping path; comment lines start with #. Gene mappings use ID/name columns; microRNA mappings use precursor ID/name/pipe-delimited mature IDs.
+    :return: A mapping of precursor IDs to mature ID lists. Supply one source when a precursor occurs in both; combining repeated precursor keys is currently unsupported.
     """
     precursor2mature = defaultdict(list)
     if gffdb_file is not None:
@@ -94,19 +119,11 @@ def build_precursor_id_to_mature_id_dict(gffdb_file, custom_file):
 
 
 def build_name_to_precursor_id_dict(gffdb_file, custom_file):
-    """
-    Returns {name:id} dictionary. 
-    Names with more than 1 associated ID will be appended, delimited by |.
-    
-    :param gffdb_file: string
-        path of the gffdb.
-        Database must contain:
-        'miRNA_primary_transcript' in featuretype field
-        'Name' in feature.attributes.chr19_keys()
-        'ID' in feature.attributes.chr19_keys()
-        
-    :return name2id_dict: dict
-        {name:id[]}
+    """Build an identifier mapping from optional database and custom table sources.
+
+    :param gffdb_file: Optional path to a gffutils database, or None.
+    :param custom_file: Optional tab-delimited mapping path; comment lines start with #. Gene mappings use ID/name columns; microRNA mappings use precursor ID/name/pipe-delimited mature IDs.
+    :return: A defaultdict(list) mapping names to ID lists; empty when both sources are None. Source errors are printed and do not propagate.
     """
     # delim = '|'
     precursor_name2id = defaultdict(list)
@@ -134,22 +151,16 @@ def build_name_to_precursor_id_dict(gffdb_file, custom_file):
 
 
 def read_and_append_id(in_file, sep, name_col, gffdb_file, custom_file, add_mature, delete_original_column):
-    """
-    Reads in a delimited file with miRNA names in at least one column
-    Returns dataframe containing matching miRNA precursor ids.
-    
-    :param in_file: string
-        input delimited file
-    :param sep: string
-        delimiter
-    :param name_col: string
-        column name where miRNA names exist
-    :param gffdb_file: string
-        path to gffutils database file
-    :param delete_original_column: bool
-        if True, delete the original name column (specified with name_col)
-        if False, keep it.
-    :return: 
+    """Read a header-bearing table and append microRNA precursor IDs.
+
+    :param in_file: Input table path with a header row.
+    :param sep: Input/output table delimiter.
+    :param name_col: Column name used for lookup.
+    :param gffdb_file: Optional path to a gffutils database, or None.
+    :param custom_file: Optional tab-delimited mapping path; comment lines start with #. Gene mappings use ID/name columns; microRNA mappings use precursor ID/name/pipe-delimited mature IDs.
+    :param add_mature: True to append mature IDs using the precursor mapping.
+    :param delete_original_column: True to drop the name column and index by ID; False to index by the original name.
+    :return: A DataFrame indexed by original names or IDs according to delete_original_column.
     """
     df = pd.read_table(in_file, sep=sep)
 
@@ -169,7 +180,18 @@ def read_and_append_id(in_file, sep, name_col, gffdb_file, custom_file, add_matu
 
 
 def convert(in_file, sep, name_col, out_file, gtfdb_file, custom_file, add_mature, delete_original_column=True):
-    """ Main runner script for conversion. """
+    """Convert a header-bearing identifier table and write its indexed result.
+
+    :param in_file: Input table path with a header row.
+    :param sep: Input/output table delimiter.
+    :param name_col: Column name used for lookup.
+    :param out_file: Output table path; includes header and index.
+    :param gtfdb_file: Optional path to a gffutils database, or None.
+    :param custom_file: Optional tab-delimited mapping path; comment lines start with #. Gene mappings use ID/name columns; microRNA mappings use precursor ID/name/pipe-delimited mature IDs.
+    :param add_mature: True to append mature IDs using the precursor mapping.
+    :param delete_original_column: True to drop the name column and index by ID; False to index by the original name.
+    :return: None; the output file contains the converted table.
+    """
     df = read_and_append_id(
         in_file, sep, name_col, gtfdb_file, custom_file,
         add_mature,
@@ -181,6 +203,12 @@ def convert(in_file, sep, name_col, out_file, gtfdb_file, custom_file, add_matur
 
 def main():
     # Setup argument parser
+    """Convert microRNA names using command-line input/output and mapping options.
+
+    Reads sys.argv: custom and/or gffdb supply precursor IDs, name_col selects
+    the lookup column, and sep defaults to tab. add_mature appends mature IDs.
+    Returns None after writing the table indexed by precursor ID.
+    """
     parser = ArgumentParser()
 
     parser.add_argument(

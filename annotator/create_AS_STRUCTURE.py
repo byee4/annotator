@@ -9,13 +9,13 @@ from tqdm import trange
 from . import annotation_functions as af
 
 def create_as_structure(db, species, out_file):
-    """
-    
-    :param db: gffutils.FeatureDB
-    :param species: string
-        sets the gtf nomenclature
-    :param out_file: string
-    :return: 
+    """Write gene-level transcript spans and exon-union lengths as GFF rows.
+
+    :param db: FeatureDB containing gene, transcript, and exon features.
+    :param species: Source vocabulary name accepted by get_keys.
+    :param out_file: Destination path, overwritten with tab-delimited GFF rows.
+    :return: None; attributes include gene_id, mrna_length (exon union), and
+        premrna_length (inclusive outer transcript span). Requires bedtools.
     """
     keys = af.get_keys(species)
     genes = af.get_gene_to_transcript_dict(
@@ -69,9 +69,11 @@ def create_as_structure(db, species, out_file):
 
 
 def main():
-    """
-    Main program.
+    """Write gene span and exon-union lengths from command-line database options.
 
+    Reads sys.argv: db_file and out_file are required; species defaults to hg19.
+    Returns None and writes GFF rows. Requires bedtools. File/database errors
+    propagate; argparse reports invalid options.
     """
     parser = argparse.ArgumentParser()
     parser.add_argument(

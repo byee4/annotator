@@ -11,14 +11,10 @@ MINVAL = 0
 
 
 def get_keys(gtf_format):
-    """
-    Describes the language for each kind of gtf file 
-    (usually different between sources).
-    Defaults to gencode standard for hg19/mm9/mm10/hg38
+    """Return the feature and attribute vocabulary for a GTF source.
 
-    :param gtf_format: string
-        either one of: ['gencode'],'ensembl','wormbase','genbank','refseq'
-    :return:
+    :param gtf_format: Source name: gencode, ensembl, ce10, ce11, wormbase, genbank, dm6_genbank, refseq, or ucsc. Other names use gencode.
+    :return: A new dictionary mapping semantic names to source keys; unsupported UTR kinds have value None.
     """
     print("gtf_format (species is deprecated) is {}".format(gtf_format))
     if gtf_format == 'ensembl':
@@ -149,8 +145,11 @@ def get_gene_to_transcript_dict(db, gene_id_key, transcript_id_key):
 
 
 def get_longest_transcripts(genes_dict, transcripts_dict):
-    """
-    Returns a dictionary of genes : longest_transcript
+    """Select the longest genomic transcript span for each gene.
+
+    :param genes_dict: Mapping of gene IDs to ordered transcript ID lists.
+    :param transcripts_dict: Mapping of transcript IDs to start and end coordinates.
+    :return: A defaultdict(dict) mapping each gene to its longest transcript ID. The first transcript wins ties; an empty list yields an empty string.
     """
     longest_genes_dict = defaultdict(dict)
     for gene, transcripts in iteritems(genes_dict):
@@ -166,9 +165,11 @@ def get_longest_transcripts(genes_dict, transcripts_dict):
 
 
 def most_upstream_downstream_positions(genes_dict, transcripts_dict):
-    """
-    Assumes the most downstream start < most downstream end (+, flipped for -) foreach transcript.
-    Returns a dictionary of genes : 
+    """Collect the inclusive outer transcript bounds for each gene.
+
+    :param genes_dict: Mapping of gene IDs to nonempty transcript ID lists.
+    :param transcripts_dict: Mapping of transcript IDs to start/end coordinates below one billion.
+    :return: A defaultdict(dict) mapping genes to minimum start and maximum end; independent of strand.
     """
     d = defaultdict(dict)
     for gene, transcripts in iteritems(genes_dict):
@@ -184,12 +185,25 @@ def most_upstream_downstream_positions(genes_dict, transcripts_dict):
     return d
 
 def get_premrna_lengths(gene_id, upstream_downstream):
+    """Return the inclusive genomic span of one gene.
+
+    :param gene_id: Gene ID to look up.
+    :param upstream_downstream: Mapping of gene IDs to inclusive start/end coordinates.
+    :return: The integer end minus start plus one.
+    """
     start = upstream_downstream[gene_id]['start']
     end = upstream_downstream[gene_id]['end']
     return end - start + 1    # (coords are 1-based inclusive still)
 
 
 def get_mrna_lengths(gene_id, exons_dict, genes_dict):
+    """Measure the union of a gene's exon bases across transcripts.
+
+    :param gene_id: Gene ID to look up.
+    :param exons_dict: Mapping of transcript IDs to exon dictionaries with chrom, inclusive start/end, and strand.
+    :param genes_dict: Mapping of gene IDs to transcript IDs.
+    :return: The integer length of the sorted exon union, merging without strand specificity. Requires the bedtools executable.
+    """
     exons_list = []
     total_mrna_length = 0
     for transcript in genes_dict[gene_id]:
@@ -210,12 +224,11 @@ def get_mrna_lengths(gene_id, exons_dict, genes_dict):
 
 
 def get_all_cds_dict(db, cds_key):
-    """
-    For every cds-annotated transcript id (ENST), return a
-    dictionary containing the lowest and highest
-    cds start and end vals for that transcript.
+    """Collect the inclusive outer CDS bounds for each transcript.
 
-    :return chr19_cds_dict : defaultdict{transcript:{'start':START, 'end':END}}
+    :param db: FeatureDB containing CDS features with transcript_id attributes.
+    :param cds_key: Feature type to treat as CDS.
+    :return: A defaultdict(dict) mapping transcript IDs to low and hi coordinates.
     """
     # chr19_cds_dict = defaultdict(lambda: {'low': MAXVAL, 'hi': MINVAL})
     cds_dict = defaultdict(dict)
@@ -274,10 +287,10 @@ def get_all_transcripts_dict(db, transcript_key, transcript_id_key):
 
 
 def chromosome_set(db):
-    """
-    Returns the set of chromosomes that exist in a database.
+    """Return the distinct sequence IDs present in a feature database.
 
-    :return:
+    :param db: FeatureDB exposing execute for the features table.
+    :return: A set of sequence ID strings, empty when no features exist.
     """
     ret = db.execute("SELECT seqid FROM features").fetchall()
     all_chromosomes = [r['seqid'] for r in ret]
@@ -317,16 +330,11 @@ def gene_id_to_name(db, gene_name_key):
 
 
 def classify_utr(utr_feature, cds_dict):
-    """
-    Given a feature classified as a UTR, return whether or not it is
-    upstream (5') or downstream (3') based on CDS positions
+    """Classify a UTR relative to the coding span and transcript strand.
 
-    :param utr_feature: gffutils.Feature
-        feature already classified as UTR (within a coding transcript but
-        outside of CDS regions).
-    :param cds_dict: dict
-        dictionary containing cds positions for every transcript
-    :return:
+    :param utr_feature: GFF feature with inclusive coordinates, strand, and transcript_id attributes.
+    :param cds_dict: Mapping of transcript IDs to inclusive low and hi CDS bounds.
+    :return: 5utr, 3utr, or unclassified_utr when CDS bounds or strand do not permit classification. A 5-prime classification takes precedence across transcripts.
     """
     three_prime_utr = False
     five_prime_utr = False

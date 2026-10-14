@@ -178,14 +178,13 @@ def calculate_avg_utr_lengths(db, cds_dict, keys):
 
 
 def calculate_total_intron_lengths(db, exons_dict, transcripts_dict, keys):
-    """
-    Calculates the total length of distal, proximal, and all introns.
-    
-    :param db: 
-    :param exons_dict: 
-    :param transcripts_dict: 
-    :param keys: 
-    :return: 
+    """Print union coverage of proximal, distal, and complete intron regions.
+
+    :param db: FeatureDB with transcript features.
+    :param exons_dict: Transcript IDs mapped to inclusive exon coordinates.
+    :param transcripts_dict: Transcript IDs mapped to inclusive start/end bounds.
+    :param keys: Source vocabulary from get_keys.
+    :return: None; prints each region's base coverage. Requires bedtools.
     """
 
     proxintron_out = None  # don't write to any file
@@ -227,14 +226,11 @@ def calculate_avg_lengths(db_file, species):
 
 
 def calculate_total_lengths(db_file, species):
-    """"
-    Prints number of bases labeled as CDS, UTR, and intron in a gtf db file.
-    Can be used to generate ratios for region distribution pie charts.
-    
-    :param db_file: gffutils.FeatureDB
-    :param species: string
-        used to generate chr19_keys corresonding to GTF column nomenclature.
-    :return: 
+    """Print CDS, UTR, and intron union coverage from a feature database.
+
+    :param db_file: Path to a gffutils database containing transcripts and exons.
+    :param species: Source vocabulary name accepted by get_keys.
+    :return: None; prints measured base counts for each region. Requires bedtools.
     """
     keys = af.get_keys(species)
     db = gffutils.FeatureDB(db_file)

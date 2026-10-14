@@ -38,6 +38,12 @@ def build_db(
 
 def main():
     # Setup argument parser
+    """Build a gffutils database from command-line annotation_file and db_file paths.
+
+    Reads sys.argv; force permits overwrite and disable_infer_genes/transcripts
+    flags control inference. Returns None after writing the database.
+    Database/file errors propagate.
+    """
     parser = ArgumentParser()
 
     parser.add_argument(

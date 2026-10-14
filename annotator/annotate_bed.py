@@ -38,6 +38,12 @@ FEATURES_DICT = {}
 
 
 def do_cprofile(func):
+    """Decorate a callable to profile its execution and print call statistics.
+
+    :param func: Callable accepting arbitrary positional and keyword arguments.
+    :return: Wrapper preserving the callable's result and exceptions, printing
+        profiling statistics in either case.
+    """
     def profiled_func(*args, **kwargs):
         profile = cProfile.Profile()
         try:
@@ -202,19 +208,14 @@ def hash_features(db, chromosomes, append_chr, fuzzy,
 
 def get_all_overlapping_features_from_query_stranded(
         chrom, qstart, qend, strand, features_dict):
-    """
-    Given a query location (chr, start, end), return all features that
-    overlap by at least one base. Functions similarly to gffutils db.region(),
-    but uses the pre-hashed self.chr19_features_dict to greatly speed things up.
+    """Find same-strand features overlapping a BED coordinate query.
 
-    :param chrom : string
-    :param qstart : int
-    :param qend : int
-    :param strand : string
-    :param features_dict : dict
-        dictionary of positions for all features
-    :return features : list
-        list of gffutils.Feature objects.
+    :param chrom: Query sequence ID.
+    :param qstart: Zero-based inclusive start.
+    :param qend: Exclusive end.
+    :param strand: Query strand, + or -.
+    :param features_dict: defaultdict(list) indexed by (chrom, int(position / HASH_VAL), strand), containing one-based inclusive GFF features.
+    :return: A list of overlapping features with overlap attributes assigned. Features are visited in bucket order; features in several buckets may occur more than once.
     """
     features = []
     append = features.append
@@ -256,20 +257,14 @@ def get_all_overlapping_features_from_query_stranded(
 
 def get_all_overlapping_features_from_query_unstranded(
         chrom, qstart, qend, strand, features_dict):
-    """
-    Returns overlapping features from a query.
+    """Find overlaps with optional preferred-strand fallback.
 
-    :param chrom: string
-        query chromosome/source
-    :param qstart: int
-        query start
-    :param qend: int
-        query end
-    :param strand: string
-        query strand
-    :param features_dict: dict
-        dictionary of positions for all features
-    :return:
+    :param chrom: Query sequence ID.
+    :param qstart: Zero-based inclusive start.
+    :param qend: Exclusive end.
+    :param strand: Preferred strand (+ or -), or None to search both.
+    :param features_dict: Bucket index as used by get_all_overlapping_features_from_query_stranded.
+    :return: Same-strand features if found, otherwise opposite-strand features. With strand None, positive-strand results precede negative-strand results.
     """
     if strand is None:  # If no strand given, return features from both strands
         positive_features = get_all_overlapping_features_from_query_stranded(
@@ -305,20 +300,15 @@ def get_all_overlapping_features_from_query_unstranded(
 
 def get_all_overlapping_features_from_query(
         chrom, qstart, qend, strand, features_dict, stranded=True):
-    """
-    Returns overlapping features from a query.
-    If stranded is True, then return only the features that overlap on
-    the same strand. Otherwise, features returned need not to be with respect
-    to strand (although if strand is given, it will return same-stranded
-    features first before attempting to find those on the opposite strand).
+    """Dispatch a BED overlap query to the selected strand policy.
 
-    :param chrom:
-    :param qstart:
-    :param qend:
-    :param strand:
-    :param features_dict:
-    :param stranded:
-    :return:
+    :param chrom: Query sequence ID.
+    :param qstart: Zero-based inclusive start.
+    :param qend: Exclusive end.
+    :param strand: Query strand, or None for an unstranded search.
+    :param features_dict: Bucket index of GFF features.
+    :param stranded: True to require the requested strand; False to use preferred-strand fallback.
+    :return: The overlapping feature list from the chosen strand policy.
     """
     if stranded:
         return get_all_overlapping_features_from_query_stranded(
@@ -332,11 +322,10 @@ def get_all_overlapping_features_from_query(
 
 
 def parse_annotation_string(features_string):
-    """
-    Splits a feature string into a list of feature strings
+    """Split pipe-delimited feature annotations without changing order.
 
-    :param features_string:
-    :return:
+    :param features_string: Pipe-delimited annotation string.
+    :return: A list of strings, preserving empty fields.
     """
     features = features_string.split('|')
     return features
@@ -359,18 +348,12 @@ def is_protein_coding(transcript_type):
 def classify_transcript_type(
         transcript_type, gene_type, distinct_nc_tx=None
 ):
-    """
-    deprecates is_protein_coding().
+    """Classify a transcript for annotation priority.
 
-    :param transcript_type: string
-    :param gene_type: string
-    :param distinct_nc_tx: list or None
-        We can pull out any distinct noncoding regions using this parameter.
-        For example, we can specify distinct_nc_tx = ['lincRNA', 'pseudogene'],
-        and this function will NOT bin these categories into the catchall
-        'non_coding' category.
-    :return transcript_type_class: string
-
+    :param transcript_type: Transcript biotype string.
+    :param gene_type: Gene biotype string, currently unused.
+    :param distinct_nc_tx: Optional iterable of noncoding biotypes to retain separately.
+    :return: protein_coding or miRNA for those exact biotypes, a matching distinct_nc_tx value, or non_coding.
     """
 
     # if the transcript type is protein coding, easy. return 'protein coding'.
@@ -561,16 +544,11 @@ def prioritize_transcript_then_gene(
 
 
 def split_string(priority_string, delim=','):
-    """
-    Parses/splits a string with an expected format and returns
-    three important fields: region, gene_id, gene_name. Returns
-    'intergenic' for all three fields if intergenic
+    """Extract region, gene ID, and gene name from an annotation.
 
-    :param priority_string: string
-        colon-delimited string containing region geneid and
-        genename in fields 4-6 (0-based open).
-    :param delim: change
-    :return region, gene_id, gene_name:
+    :param priority_string: Formatted feature string with fields 4 through 6, or intergenic.
+    :param delim: Field delimiter, comma by default.
+    :return: A tuple of region, gene ID, and gene name; all three equal intergenic for that sentinel.
     """
     if priority_string == 'intergenic':
         return 'intergenic', 'intergenic', 'intergenic'
@@ -711,12 +689,10 @@ def annotate(
 
 
 def split_bed_interval(bed_string):
-    """
-    Takes a bed file as a line (tab delimited) and returns 6 fields
-    correctly typed.
-    :param bed_string: string
-    :return chrom, start, end, name, score, strand: string
-        bed interval
+    """Parse a tab-delimited BED6 line.
+
+    :param bed_string: BED6 text with optional trailing whitespace.
+    :return: A tuple of chromosome, integer start/end, name, score, and strand; name, score, and strand remain strings.
     """
     bed = bed_string.rstrip().split('\t')
     return bed[0], int(bed[1]), int(bed[2]), bed[3], bed[4], bed[5]
